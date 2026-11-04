@@ -16,6 +16,7 @@ Example:
     {'y': 2}
 """
 
+import itertools
 import re
 from dataclasses import dataclass
 
@@ -47,6 +48,7 @@ _IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
 _DERIVATIVE = re.compile(r"([A-Za-z][A-Za-z0-9_]*)('+)")
 _FUNCTION_CALL = re.compile(r"([A-Za-z][A-Za-z0-9_]*)\s*\(")
 _DERIVATIVE_MARK = "__d"
+_MAX_EQUATIONS_TO_MATCH = 6
 
 # "3y'" means 3*y', "y^3" means y**3, and decimals such as 0.5 are kept
 # as exact fractions (1/2) so that no rounding error appears when solving.
@@ -220,3 +222,104 @@ def _solve_for_highest(equations: list, orders: dict) -> dict:
         solution = list(matrix.LUsolve(constants))
     return {name: sympy.simplify(value) if len(highest) > 1 else value
             for name, value in zip(orders, solution)}
+
+
+def variable_order(source: str, system: ParsedSystem) -> list:
+    """Unknown variables in the order they first appear in one equation."""
+    names = [name for name in _IDENTIFIER.findall(source) if name in system.orders]
+    return list(dict.fromkeys(names + list(system.orders)))
+
+
+def ordered_terms(expr: sympy.Expr, variables: list) -> list:
+    """Split a sum into terms in the order used in the course.
+
+    Inputs come first, then the terms of each variable (in the order the
+    user wrote them) from the highest derivative down, as in
+    u − 3ÿ − 2ẏ − y − ż.
+    """
+    def key(term):
+        found = [split_symbol(symbol) for symbol in term.free_symbols]
+        found = [(variables.index(n), o) for n, o in found if n in variables]
+        if not found:
+            return (0, 0, 0)
+        position = min(index for index, _ in found)
+        order = max(o for index, o in found if index == position)
+        return (1, position, -order)
+
+    return sorted(sympy.Add.make_args(expr), key=key)
+
+
+def _isolate(expression: sympy.Expr, target: sympy.Symbol, highest: set):
+    """Isolate `target` in ``expression = 0``, as done on paper.
+
+    Returns:
+        ``(numerator, denominator)`` such that target = numerator / denominator,
+        or None if the target does not appear as ``coefficient * target``.
+    """
+    terms = sympy.Add.make_args(expression)
+    with_target = sympy.expand(sympy.Add(*[t for t in terms if t.has(target)]))
+    coefficient = with_target.coeff(target)
+    if coefficient == 0 or coefficient.has(*highest) or sympy.expand(coefficient * target) != with_target:
+        return None
+    numerator = -sympy.Add(*[t for t in terms if not t.has(target)])
+    return numerator, coefficient
+
+
+def _has_loop(dependencies: dict) -> bool:
+    """True if the highest derivatives depend on each other in a circle."""
+    visiting, done = set(), set()
+
+    def visit(name):
+        if name in done:
+            return False
+        if name in visiting:
+            return True
+        visiting.add(name)
+        if any(visit(other) for other in dependencies[name]):
+            return True
+        visiting.discard(name)
+        done.add(name)
+        return False
+
+    return any(visit(name) for name in dependencies)
+
+
+def isolate_equations(system: ParsedSystem) -> list:
+    """Return how each equation is solved for a highest derivative.
+
+    Each equation is matched with the unknown whose highest derivative it
+    is solved for, preferring the variable written first in it. Highest
+    derivatives of other variables may stay in the result (ż in
+    ÿ = −5ẏ − y − ż − ẋ), as in the course, as long as they do not depend
+    on each other in a circle. When no such matching exists (exercise 12),
+    the fully solved expressions from the parser are used.
+
+    Returns:
+        A list of ``(highest_symbol, numerator, denominator, variables)``
+        tuples, one per equation; ``variables`` gives the term order.
+    """
+    names = list(system.orders)
+    highest = {name: derivative_symbol(name, system.orders[name]) for name in names}
+    expressions = [eq.lhs - eq.rhs for eq in system.equations]
+    orders = [variable_order(source, system) for source in system.sources]
+
+    best = None
+    if len(names) <= _MAX_EQUATIONS_TO_MATCH:
+        for assignment in itertools.permutations(names):
+            rows = [_isolate(e, highest[n], set(highest.values())) for e, n in zip(expressions, assignment)]
+            if None in rows:
+                continue
+            dependencies = {
+                name: {other for other in names if other != name and row[0].has(highest[other])}
+                for name, row in zip(assignment, rows)
+            }
+            if _has_loop(dependencies):
+                continue
+            score = sum(order[0] == name for order, name in zip(orders, assignment))
+            if best is None or score > best[0]:
+                best = (score, assignment, rows)
+
+    if best is not None:
+        _, assignment, rows = best
+        return [(highest[n], num, den, order) for n, (num, den), order in zip(assignment, rows, orders)]
+    return [(highest[n], sympy.expand(system.solved[n]), sympy.Integer(1), names) for n in names]
