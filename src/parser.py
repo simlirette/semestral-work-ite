@@ -64,12 +64,15 @@ class ParsedSystem:
         inputs: Names of the input signals (variables never differentiated).
         solved: Each unknown variable mapped to the expression of its highest
             derivative, for example ``{'y': u - 3*y__d1}`` for ``y'' + 3y' = u``.
+        sources: The text of each equation, used to display terms in the
+            order the user wrote the variables.
     """
 
     equations: tuple
     orders: dict
     inputs: tuple
     solved: dict
+    sources: tuple = ()
 
 
 def derivative_symbol(name: str, order: int) -> sympy.Symbol:
@@ -129,7 +132,7 @@ def parse_system(text: str) -> ParsedSystem:
         )
 
     solved = _solve_for_highest(equations, orders)
-    return ParsedSystem(tuple(equations), orders, tuple(inputs), solved)
+    return ParsedSystem(tuple(equations), orders, tuple(inputs), solved, tuple(pieces))
 
 
 def _parse_equation(text: str) -> sympy.Eq:
