@@ -1,0 +1,2 @@
+# No external dependencies yet.
+# numpy, scipy and matplotlib will be added with the solver module.
