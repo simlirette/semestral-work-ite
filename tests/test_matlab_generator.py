@@ -58,18 +58,40 @@ class TestScript(unittest.TestCase):
         self.assertIn("%   3y'' + y' + 2y = u", self.script)
 
     def test_blocks_with_parameters(self):
-        self.assertIn("add_block('simulink/Math Operations/Gain', [model '/' 'Gain2'], 'Gain', '1/3');",
-                      self.script)
-        self.assertIn("'IconShape', 'round', 'Inputs', '|+--'", self.script)
+        self.assertIn("add_block('simulink/Math Operations/Gain', [model '/' 'Gain2'], 'Gain', '1/3', "
+                      "'Position', [", self.script)
+        # Sum slots from the layout: two empty slots on top, u on the left,
+        # then 2y and y' coming from below.
+        self.assertIn("'IconShape', 'round', 'Inputs', '||+--'", self.script)
+        self.assertIn("route(model, 'Step u', 'Sum1', 1, NaN, [1 ", self.script)
         self.assertIn("[model '/' 'Integrator y'''], 'InitialCondition', '0'", self.script)
 
     def test_labelled_line(self):
-        expected = ("set_param(add_line(model, 'Gain2/1', 'Integrator y''/1', 'autorouting', 'smart'), "
-                    "'Name', 'y''''');")
+        expected = ("h = route(model, 'Gain2', 'Integrator y''', 1, NaN, zeros(0, 2));\n"
+                    "set_param(h, 'Name', 'y''''');")
         self.assertIn(expected, self.script)
 
-    def test_layout_and_save(self):
-        self.assertIn("Simulink.BlockDiagram.arrangeSystem(model);", self.script)
+    def test_branch_lines_after_port_lines(self):
+        """A branch starts on an existing line, so it must be drawn later."""
+        trunk = self.script.index("route(model, 'Integrator y''', 'Integrator y', 1, NaN")
+        branch = self.script.index("route(model, 'Integrator y''', 'Sum1', 3, ")
+        self.assertLess(trunk, branch)
+
+    def test_route_function_included(self):
+        self.assertIn("function h = route(model, source, target, port, tapX, moves)", self.script)
+        self.assertTrue(self.script.rstrip().endswith("end"))
+
+    def test_positions_and_orientation(self):
+        """Every block gets a position; the feedback Gain 2 faces left."""
+        self.assertEqual(self.script.count("'Position', ["), self.script.count("add_block("))
+        gain = next(line for line in self.script.splitlines() if "'Gain1'" in line and "add_block" in line)
+        self.assertIn("'Orientation', 'left'", gain)
+
+    def test_each_signal_named_once(self):
+        """Step u branches to the Sum and the Mux, but is named only once."""
+        self.assertEqual(self.script.count("'Name', 'u'"), 1)
+
+    def test_simulation_time_and_save(self):
         self.assertIn("set_param(model, 'StopTime', '100');", self.script)
         self.assertIn("save_system(model", self.script)
 
@@ -95,7 +117,8 @@ class TestEveryBlockAndLine(unittest.TestCase):
             script = generate_script(model)
             with self.subTest(text=text):
                 self.assertEqual(script.count("add_block("), len(model.blocks))
-                self.assertEqual(script.count("add_line("), len(model.lines))
+                drawn = re.findall(r"^(?:h = )?(?:route|add_line)\(model, '", script, re.MULTILINE)
+                self.assertEqual(len(drawn), len(model.lines))
                 used = set(re.findall(r"add_block\('([^']+)'", script))
                 self.assertTrue(used <= set(LIBRARY.values()))
 

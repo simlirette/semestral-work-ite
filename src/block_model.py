@@ -10,8 +10,9 @@ The model follows the method taught in the course (lectures 1 and 2):
 3. a Gain 1/a after the Sum when the highest derivative has a
    coefficient a, as in ẏ = (0.5u − 3y) / 2;
 4. Product, Abs and Fcn blocks for nonlinear terms (ÿ·|ẏ|, ẏ³);
-5. a Step block for each input signal and one Scope showing the inputs
-   and the unknown variables.
+5. a Step block for each input signal, and one Mux per equation that
+   groups its inputs and its variable (for example [u, y]) before the
+   Scope, as on the solution schemes.
 
 Block parameters use Simulink's own parameter names (``Gain``,
 ``Inputs``, ``InitialCondition``...), so the MATLAB generator can set
@@ -41,7 +42,7 @@ class Block:
     Attributes:
         name: Unique name in the model, for example ``"Gain2"``.
         kind: Block type: Step, Constant, Sum, Gain, Product, Abs, Fcn,
-            Integrator or Scope.
+            Integrator, Mux or Scope.
         parameters: Simulink parameter names mapped to their values as text.
     """
 
@@ -55,7 +56,7 @@ class Block:
             return 0
         if self.kind == "Sum":
             return len(self.parameters["Inputs"])
-        if self.kind == "Product":
+        if self.kind in ("Product", "Mux"):
             return int(self.parameters["Inputs"])
         if self.kind == "Scope":
             return int(self.parameters["NumInputPorts"])
@@ -262,12 +263,38 @@ def build_block_model(system: ParsedSystem, initial_conditions: dict = None) -> 
         builder.variables = row[3]
         _build_equation(builder, symbol, numerator, denominator, first_integrator)
 
-    scope_signals = [sympy.Symbol(name) for name in system.inputs]
-    scope_signals += [derivative_symbol(name, 0) for name in system.orders]
-    scope = builder.add("Scope", NumInputPorts=len(scope_signals))
-    for port, symbol in enumerate(scope_signals, start=1):
-        builder.connect(builder.signal(symbol), scope, port, label=symbol.name)
+    _add_scope(builder, system, rows)
     return builder.model
+
+
+def _add_scope(builder, system, rows) -> None:
+    """One Mux per equation ([inputs, variable]) feeding a common Scope.
+
+    Each input is shown with the first equation that uses it. When an
+    equation has no input of its own, its variable goes straight to the
+    Scope without a Mux.
+    """
+    inputs_of = {}
+    shown = set()
+    for symbol, numerator, _, _ in rows:
+        name = split_symbol(symbol)[0]
+        used = [i for i in system.inputs if sympy.Symbol(i) in numerator.free_symbols and i not in shown]
+        shown.update(used)
+        inputs_of[name] = used
+    first = next(iter(system.orders))
+    inputs_of[first] = [i for i in system.inputs if i not in shown] + inputs_of[first]
+
+    groups = [[sympy.Symbol(i) for i in inputs_of[name]] + [derivative_symbol(name, 0)]
+              for name in system.orders]
+    scope = builder.add("Scope", NumInputPorts=len(groups))
+    for port, group in enumerate(groups, start=1):
+        if len(group) == 1:
+            builder.connect(builder.signal(group[0]), scope, port, label=group[0].name)
+            continue
+        mux = builder.add("Mux", Inputs=len(group))
+        for mux_port, symbol in enumerate(group, start=1):
+            builder.connect(builder.signal(symbol), mux, mux_port, label=symbol.name)
+        builder.connect(mux, scope, port)
 
 
 def _build_equation(builder, symbol, numerator, denominator, first_integrator) -> None:
