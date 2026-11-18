@@ -211,3 +211,27 @@ def to_latex(system: ParsedSystem) -> tuple:
 def to_text(system: ParsedSystem) -> tuple:
     """Return the interpreted and solved equations as plain Unicode text."""
     return equation_lines(system, "text")
+
+
+def initial_condition_lines(system: ParsedSystem, conditions: dict, printer_type: str) -> list:
+    """Return the starting values of each variable, one line per variable.
+
+    Every Integrator is listed, so the user sees the values not given too
+    (they are 0). For y'' + 3y' = u with y(0)=1, the text line is
+    ``y(0) = 1, ẏ(0) = 0``.
+
+    Args:
+        system: A parsed system from :func:`src.parser.parse_system`.
+        conditions: Values by ``(variable, order)``, from
+            :func:`src.parser.parse_initial_conditions`.
+        printer_type: ``"latex"`` or ``"text"``.
+    """
+    printer = _Latex() if printer_type == "latex" else _Text()
+    name_of = derivative_latex if printer_type == "latex" else derivative_text
+    separator = r",\quad " if printer_type == "latex" else ", "
+
+    def value(name, k):
+        number = _decimals(sympy.sympify(conditions.get((name, k), 0)))
+        return f"{name_of(name, k)}(0) = {printer._print(number)}"
+
+    return [separator.join(value(name, k) for k in range(order)) for name, order in system.orders.items()]

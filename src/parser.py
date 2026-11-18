@@ -139,6 +139,51 @@ def parse_system(text: str) -> ParsedSystem:
     return ParsedSystem(tuple(equations), orders, tuple(inputs), solved, tuple(pieces))
 
 
+_INITIAL_CONDITION = re.compile(r"\s*([A-Za-z][A-Za-z0-9_]*)('*)\s*\(\s*0\s*\)\s*=\s*(.+?)\s*")
+
+
+def parse_initial_conditions(text: str, orders: dict) -> dict:
+    """Read the starting values of the variables, written like y(0)=1, y'(0)=0.5.
+
+    Each value goes in one Integrator, so a variable of order n can only
+    get the values of y, y', ... up to n-1 apostrophes. Values not given
+    are 0, like in Simulink.
+
+    Args:
+        text: Values separated by commas, for example ``"y(0)=1, y'(0)=-0.5"``.
+        orders: The unknown variables with their highest order, as in
+            :attr:`ParsedSystem.orders`.
+
+    Returns:
+        The values by ``(variable, order)``, for example
+        ``{("y", 0): 1, ("y", 1): -1/2}``.
+
+    Raises:
+        EquationError: If a value is badly written or has no Integrator.
+    """
+    values = {}
+    for piece in filter(str.strip, text.split(",")):
+        match = _INITIAL_CONDITION.fullmatch(piece)
+        if not match:
+            raise EquationError(f"Write each initial condition like y(0)=1 or y'(0)=0.5, not: {piece.strip()}")
+        name, order, number = match.group(1), len(match.group(2)), match.group(3)
+        label = name + "'" * order
+        if name not in orders:
+            raise EquationError(f"'{name}' is not a variable of the equation(s).")
+        if order >= orders[name]:
+            last = name + "'" * (orders[name] - 1)
+            raise EquationError(f"{label}(0) cannot be set: the last value you can give for {name} is {last}(0).")
+        if (name, order) in values:
+            raise EquationError(f"{label}(0) is given twice.")
+        try:
+            value = parse_expr(number, transformations=_TRANSFORMATIONS)
+        except (SyntaxError, TypeError, ValueError):
+            value = None
+        if value is None or not value.is_number:
+            raise EquationError(f"The value of {label}(0) must be a number, not: {number}")
+        values[(name, order)] = value
+    return values
+
 def _parse_equation(text: str) -> sympy.Eq:
     """Turn the text of one equation into a SymPy equation."""
     if not _ALLOWED_TEXT.fullmatch(text):

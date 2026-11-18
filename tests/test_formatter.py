@@ -11,8 +11,8 @@ import unittest
 
 from matplotlib import mathtext
 
-from src.formatter import derivative_latex, derivative_text, to_latex, to_text
-from src.parser import parse_system
+from src.formatter import derivative_latex, derivative_text, initial_condition_lines, to_latex, to_text
+from src.parser import parse_initial_conditions, parse_system
 
 # Combining dots above, as produced by the formatter.
 DOT1, DOT2, DOT3 = "̇", "̈", "⃛"
@@ -103,6 +103,22 @@ class TestSystems(unittest.TestCase):
                 "m2*x2'' + b2*(x2' - x1') + k2*(x2 - x1) = F")
         _, solved = to_latex(parse_system(text))
         self.assertIn(r"\left(\dot{x}_{2}(t) - \dot{x}_{1}(t)\right)", solved[1])
+
+
+class TestInitialConditions(unittest.TestCase):
+    """Initial conditions shown in course notation, one line per variable."""
+
+    def test_values_not_given_are_shown_as_zero(self):
+        system = parse_system("y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v")
+        conditions = parse_initial_conditions("y(0)=1, z'(0)=0.5", system.orders)
+        self.assertEqual(initial_condition_lines(system, conditions, "text"),
+                         [f"y(0) = 1, y{DOT1}(0) = 0, y{DOT2}(0) = 0", f"z(0) = 0, z{DOT1}(0) = 0.5"])
+
+    def test_latex(self):
+        system = parse_system("y'' + 3y' = u")
+        conditions = parse_initial_conditions("y(0)=-1, y'(0)=1/3", system.orders)
+        self.assertEqual(initial_condition_lines(system, conditions, "latex"),
+                         [r"y(0) = -1,\quad \dot{y}(0) = \frac{1}{3}"])
 
 
 class TestRendering(unittest.TestCase):

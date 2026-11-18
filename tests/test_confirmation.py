@@ -10,7 +10,7 @@ import io
 import unittest
 
 from src.confirmation import ask_confirmation
-from src.parser import parse_system
+from src.parser import parse_initial_conditions, parse_system
 
 
 def answers(*replies):
@@ -45,6 +45,20 @@ class TestAskConfirmation(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             ask_confirmation(self.system, use_window=False, ask=answers("y"))
         self.assertIn("u(t) - 3", output.getvalue())
+
+    def test_prints_the_initial_conditions_when_given(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            ask_confirmation(self.system, use_window=False, ask=answers("y"),
+                             conditions=parse_initial_conditions("y(0)=1", self.system.orders))
+        self.assertIn("Initial conditions:", output.getvalue())
+        self.assertIn("y(0) = 1, ", output.getvalue())
+
+    def test_no_initial_conditions_section_by_default(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            ask_confirmation(self.system, use_window=False, ask=answers("y"))
+        self.assertNotIn("Initial conditions", output.getvalue())
 
 
 if __name__ == "__main__":

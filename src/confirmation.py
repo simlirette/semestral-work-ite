@@ -6,7 +6,7 @@ so they look like equations typeset in Word. The user then answers
 y or n in the terminal.
 """
 
-from src.formatter import to_latex, to_text
+from src.formatter import initial_condition_lines, to_latex, to_text
 from src.parser import ParsedSystem
 
 _FONT_SIZE = 20
@@ -14,27 +14,31 @@ _TITLE_SIZE = 11
 _MARGIN = 0.3  # inches
 
 
-def _titles(count: int) -> tuple:
-    """Section titles, singular or plural depending on the number of equations."""
-    if count == 1:
-        return "Interpreted equation", "Solved for the highest derivative"
-    return "Interpreted equations", "Solved for the highest derivatives"
+def _sections(system: ParsedSystem, conditions, printer_type: str) -> list:
+    """Return the parts to show, as (title, lines) pairs.
+
+    The equations as understood, the equations solved for the highest
+    derivative, and the initial conditions if the user gave some.
+    """
+    interpreted, solved = to_latex(system) if printer_type == "latex" else to_text(system)
+    plural = "s" if len(interpreted) > 1 else ""
+    sections = [(f"Interpreted equation{plural}", interpreted),
+                (f"Solved for the highest derivative{plural}", solved)]
+    if conditions is not None:
+        sections.append(("Initial conditions", initial_condition_lines(system, conditions, printer_type)))
+    return sections
 
 
-def print_equations(system: ParsedSystem) -> None:
-    """Print the interpreted and solved equations in the terminal."""
-    interpreted, solved = to_text(system)
-    first, second = _titles(len(interpreted))
-    print(f"\n{first}:")
-    for line in interpreted:
-        print(f"    {line}")
-    print(f"\n{second}:")
-    for line in solved:
-        print(f"    {line}")
+def print_equations(system: ParsedSystem, conditions: dict = None) -> None:
+    """Print the equations (and the initial conditions, if given) in the terminal."""
+    for title, lines in _sections(system, conditions, "text"):
+        print(f"\n{title}:")
+        for line in lines:
+            print(f"    {line}")
     print()
 
 
-def open_window(system: ParsedSystem):
+def open_window(system: ParsedSystem, conditions: dict = None):
     """Draw the equations in a matplotlib window and return the figure.
 
     The window stays open (without blocking the program) until the
@@ -43,15 +47,13 @@ def open_window(system: ParsedSystem):
     import matplotlib.pyplot as plt
 
     plt.rcParams["mathtext.fontset"] = "stix"
-    interpreted, solved = to_latex(system)
-    first, second = _titles(len(interpreted))
 
     # Each row: (text, x, height, style). Titles are small and grey;
     # equations are drawn by matplotlib's math renderer.
     title = dict(fontsize=_TITLE_SIZE, color="#555555")
     math = dict(fontsize=_FONT_SIZE, color="black")
     rows = []
-    for heading, lines in ((first, interpreted), (second, solved)):
+    for heading, lines in _sections(system, conditions, "latex"):
         rows.append((heading, _MARGIN / 2, 0.45, title))
         rows += [(f"${line}$", _MARGIN, 1.0 if r"\dfrac" in line else 0.6, math) for line in lines]
 
@@ -77,7 +79,8 @@ def open_window(system: ParsedSystem):
     return figure
 
 
-def ask_confirmation(system: ParsedSystem, use_window: bool = True, ask=input) -> bool:
+def ask_confirmation(system: ParsedSystem, use_window: bool = True, ask=input,
+                     conditions: dict = None) -> bool:
     """Show the equations and ask whether they were understood correctly.
 
     Args:
@@ -86,15 +89,18 @@ def ask_confirmation(system: ParsedSystem, use_window: bool = True, ask=input) -
             If the window cannot be opened, the text version is enough.
         ask: Function used to read the answer; ``input`` by default
             (tests replace it to simulate the user).
+        conditions: Initial conditions given by the user, from
+            :func:`src.parser.parse_initial_conditions`; None if none
+            were given (they are then not shown).
 
     Returns:
         True if the user answered yes, False if no.
     """
-    print_equations(system)
+    print_equations(system, conditions)
     figure = None
     if use_window:
         try:
-            figure = open_window(system)
+            figure = open_window(system, conditions)
         except Exception:  # no display, missing GUI toolkit, ...
             print("(The equation window could not be opened; check the text above.)\n")
 

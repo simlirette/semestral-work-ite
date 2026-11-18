@@ -11,7 +11,7 @@ import unittest
 
 import sympy
 
-from src.parser import EquationError, derivative_symbol, parse_system, split_symbol
+from src.parser import EquationError, derivative_symbol, parse_initial_conditions, parse_system, split_symbol
 
 # Symbols used to write the expected results.
 u, v = sympy.symbols("u v")
@@ -130,6 +130,42 @@ class TestInvalidInput(unittest.TestCase):
 
     def test_unsolvable_system(self):
         self.assert_rejected("y' + z' = u ; y' + z' = v")
+
+
+class TestInitialConditions(unittest.TestCase):
+    """Starting values written like y(0)=1, y'(0)=0.5 (lecture "Initial conditions")."""
+
+    def setUp(self):
+        self.orders = parse_system("y'' + 3y' = u").orders
+
+    def test_values_by_variable_and_order(self):
+        values = parse_initial_conditions("y(0)=1, y'(0)=0.5", self.orders)
+        self.assertEqual(values, {("y", 0): 1, ("y", 1): sympy.Rational(1, 2)})
+
+    def test_spaces_negative_values_and_fractions(self):
+        values = parse_initial_conditions(" y(0) = -2 , y'(0) = 1/3 ", self.orders)
+        self.assertEqual(values, {("y", 0): -2, ("y", 1): sympy.Rational(1, 3)})
+
+    def test_values_not_given_are_left_out(self):
+        """Missing values are 0 later, when the Integrators are built."""
+        self.assertEqual(parse_initial_conditions("y'(0)=4", self.orders), {("y", 1): 4})
+
+    def test_system(self):
+        orders = parse_system("y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v").orders
+        values = parse_initial_conditions("y''(0)=1, z'(0)=2", orders)
+        self.assertEqual(values, {("y", 2): 1, ("z", 1): 2})
+
+    def test_rejected(self):
+        """Each of these must stop the program with a clear message."""
+        for text in ("y''(0)=1",       # y'' has no Integrator of its own
+                     "z(0)=1",         # z is not in the equation
+                     "y(0)=a",         # not a number
+                     "y=1",            # (0) missing
+                     "y(1)=1",         # only t = 0 is allowed
+                     "y(0)=",          # value missing
+                     "y(0)=1, y(0)=2"):  # given twice
+            with self.subTest(text=text), self.assertRaises(EquationError):
+                parse_initial_conditions(text, self.orders)
 
 
 if __name__ == "__main__":
