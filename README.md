@@ -2,8 +2,6 @@
 
 You write a differential equation as plain text. The program builds the matching Simulink model, so you can check the model you made by hand.
 
-> Version 1.0 is almost ready. The diagrams are still to come.
-
 ## Purpose
 
 In a Simulink course, you turn differential equations into block diagrams by hand. This program does the same thing automatically, with the method taught in the course:
@@ -16,6 +14,24 @@ In a Simulink course, you turn differential equations into block diagrams by han
 You solve the exercise first. Then you generate the reference model and compare the two models and their results.
 
 **Who it is for:** students of a "Simulations in MATLAB/Simulink" course, and teachers who prepare the solutions.
+
+## How it works
+
+**Input:** the equation(s) typed as text in the terminal, and the initial conditions if you want some.
+
+**Outputs:**
+- the equations written like in class, in the terminal and in a small window, so you can check them;
+- a MATLAB script, `build_<name>.m`. When you run it in MATLAB, it builds the Simulink model and saves it as `<name>.slx`.
+
+The program goes through these steps. If the equation is badly written, or if you answer `n`, it stops before building anything.
+
+![Steps of the program](docs/diagrams/program_flow.png)
+
+The code is split into one module per step. `main.py` calls them one after the other. The parser gives a `ParsedSystem` (the equations, solved), and `block_model` turns it into a `BlockModel` (the list of blocks and wires) that `matlab_generator` writes as a script.
+
+![Modules of the program](docs/diagrams/modules.png)
+
+The diagrams are drawn with [Mermaid](https://mermaid.js.org). Their text sources are in `docs/diagrams/` next to the images.
 
 ## Installation
 
@@ -123,6 +139,7 @@ src/
   matlab_generator.py  writes the MATLAB script that builds the model
 tests/                 one test file per module
 docs/tests.md          how the program is tested
+docs/diagrams/         diagrams of the program (images and sources)
 main.py                runs the program
 test_main.py           runs all the tests
 ```

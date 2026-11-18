@@ -1,0 +1,20 @@
+flowchart TD
+    start(( )) --> read["Read the equation<br>and the initial conditions"]
+    read --> solve["Solve each equation<br>for its highest derivative"]
+    solve --> ok{"Written<br>correctly?"}
+    ok -- no --> why["Show why and stop"] --> stop1(("●"))
+    ok -- yes --> show["Show the equations in class notation<br>(window and terminal)"]
+    show --> confirm{"Is this what<br>you meant?"}
+    confirm -- no --> stop2(("●"))
+    confirm -- yes --> blocks["Turn the equations into<br>Simulink blocks and wires"]
+    blocks --> script["Save the MATLAB script<br>build_&lt;name&gt;.m"]
+    subgraph MATLAB
+        run["Run the script"] --> build["Simulink adds the blocks,<br>arranges them and saves &lt;name&gt;.slx"]
+    end
+    script --> run
+    build --> stop3(("●"))
+
+    classDef dot fill:#000,stroke:#000
+    class start dot
+    classDef endnode fill:#fff,stroke:#000,stroke-width:2px,font-size:22px,color:#000
+    class stop1,stop2,stop3 endnode

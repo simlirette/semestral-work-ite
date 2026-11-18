@@ -1,0 +1,58 @@
+classDiagram
+    direction TB
+    class main {
+        <<module>>
+        main()
+    }
+    class parser {
+        <<module>>
+        parse_system(text) ParsedSystem
+        parse_initial_conditions(text, orders) dict
+    }
+    class ParsedSystem {
+        equations
+        orders
+        inputs
+        solved
+    }
+    class confirmation {
+        <<module>>
+        ask_confirmation(system, conditions) bool
+    }
+    class formatter {
+        <<module>>
+        to_latex(system)
+        to_text(system)
+    }
+    class block_model {
+        <<module>>
+        build_block_model(system, conditions) BlockModel
+    }
+    class BlockModel {
+        blocks
+        lines
+    }
+    class Block {
+        name
+        kind
+        parameters
+    }
+    class Line {
+        source
+        target
+        target_port
+        label
+    }
+    class matlab_generator {
+        <<module>>
+        write_script(model, folder, name) Path
+    }
+    main ..> parser : 1. reads the text
+    main ..> confirmation : 2. asks the user
+    main ..> block_model : 3. builds the blocks
+    main ..> matlab_generator : 4. writes the script
+    confirmation ..> formatter : writes in class notation
+    parser ..> ParsedSystem : creates
+    block_model ..> BlockModel : creates
+    BlockModel *-- Block
+    BlockModel *-- Line
