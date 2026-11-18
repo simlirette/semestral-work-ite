@@ -25,7 +25,7 @@ You solve the exercise first. Then you generate the reference model and compare 
 
 The program goes through these steps. If the equation is badly written, or if you answer `n`, it stops before building anything.
 
-![Steps of the program](docs/diagrams/program_flow.png)
+<img src="docs/diagrams/program_flow.png" alt="Steps of the program" width="380">
 
 The code is split into one module per step. `main.py` calls them one after the other. The parser gives a `ParsedSystem` (the equations, solved), and `block_model` turns it into a `BlockModel` (the list of blocks and wires) that `matlab_generator` writes as a script.
 
