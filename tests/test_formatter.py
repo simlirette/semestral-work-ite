@@ -3,7 +3,7 @@
 The expected strings follow the notation of the course: dots up to the
 third derivative, y⁽⁴⁾ from the fourth on, and the highest derivative
 isolated as on the lecture slides, for example
-ẏ = (0.5u − 3y) / 2 from lecture 1.
+ẏ = (u/2 − 3y) / 2 from lecture 1. Fractions always stay fractions.
 """
 
 import io
@@ -49,11 +49,11 @@ class TestSingleEquations(unittest.TestCase):
         self.assertEqual(interpreted, [f"y{DOT2}(t) + 3y{DOT1}(t) = u(t)"])
         self.assertEqual(solved, [f"y{DOT2}(t) = u(t) - 3y{DOT1}(t)"])
 
-    def test_lecture_example_fraction_and_decimal(self):
-        """Lecture 1: 2ẏ + 3y = 0.5u gives ẏ = (0.5u − 3y) / 2."""
+    def test_lecture_example_fractions(self):
+        """Lecture 1: 2ẏ + 3y = 0.5u gives ẏ = (u/2 − 3y) / 2; 0.5 is shown as a fraction."""
         interpreted, solved = to_latex(parse_system("2y' + 3y = 0.5u"))
-        self.assertEqual(interpreted, [r"2 \dot{y}(t) + 3 y(t) = 0.5 u(t)"])
-        self.assertEqual(solved, [r"\dot{y}(t) = \dfrac{0.5 u(t) - 3 y(t)}{2}"])
+        self.assertEqual(interpreted, [r"2 \dot{y}(t) + 3 y(t) = \frac{u(t)}{2}"])
+        self.assertEqual(solved, [r"\dot{y}(t) = \dfrac{\frac{u(t)}{2} - 3 y(t)}{2}"])
 
     def test_exercise_10_leading_coefficient(self):
         _, solved = to_text(parse_system("5y''' + 10y'' + 10y' + 2y = u"))
@@ -70,7 +70,7 @@ class TestSingleEquations(unittest.TestCase):
 
     def test_fifth_order_lecture_task(self):
         interpreted, _ = to_latex(parse_system("y''''' + 5.5y'''' + 3.5y''' + 5y'' + y' + y = u"))
-        self.assertTrue(interpreted[0].startswith(r"y^{(5)}(t) + 5.5 y^{(4)}(t) + 3.5 \dddot{y}(t)"))
+        self.assertTrue(interpreted[0].startswith(r"y^{(5)}(t) + \frac{11 y^{(4)}(t)}{2} + \frac{7 \dddot{y}(t)}{2}"))
 
 
 class TestSystems(unittest.TestCase):
@@ -90,13 +90,14 @@ class TestSystems(unittest.TestCase):
         self.assertEqual(solved[0], f"y{DOT2}(t) = -5y{DOT1}(t) - y(t) - z{DOT1}(t) - x{DOT1}(t)")
         self.assertEqual(solved[1], f"z{DOT1}(t) = u(t) - z(t) - x{DOT1}(t)")
 
-    def test_exercise_12_falls_back_to_full_solution(self):
-        """Both third derivatives are in both equations, so they are solved together."""
+    def test_exercise_12_keeps_the_algebraic_loop(self):
+        """Like the professor: each equation keeps the other one's third derivative."""
         text = ("2y''' + 5y'' + y' + 2y + z''' + 1.5z'' + 2z' + 2z = u ; "
                 "3z''' + 2z'' + 5z' + 2z - y''' - 5y'' - 3y' - 2y = 0")
         _, solved = to_text(parse_system(text))
-        self.assertTrue(solved[0].startswith(f"y{DOT3}(t) = 3u(t)/7"))
-        self.assertNotIn(f"z{DOT3}", solved[0])
+        self.assertEqual(solved[0], f"y{DOT3}(t) = (u(t) - 5y{DOT2}(t) - y{DOT1}(t) - 2y(t) - z{DOT3}(t) "
+                                    f"- 3z{DOT2}(t)/2 - 2z{DOT1}(t) - 2z(t)) / 2")
+        self.assertIn(f"y{DOT3}(t)", solved[1])
 
     def test_two_springs_keep_parentheses(self):
         text = ("m1*x1'' + b1*x1' + k1*x1 - b2*(x2' - x1') - k2*(x2 - x1) = 0 ; "
@@ -112,7 +113,7 @@ class TestInitialConditions(unittest.TestCase):
         system = parse_system("y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v")
         conditions = parse_initial_conditions("y(0)=1, z'(0)=0.5", system.orders)
         self.assertEqual(initial_condition_lines(system, conditions, "text"),
-                         [f"y(0) = 1, y{DOT1}(0) = 0, y{DOT2}(0) = 0", f"z(0) = 0, z{DOT1}(0) = 0.5"])
+                         [f"y(0) = 1, y{DOT1}(0) = 0, y{DOT2}(0) = 0", f"z(0) = 0, z{DOT1}(0) = 1/2"])
 
     def test_latex(self):
         system = parse_system("y'' + 3y' = u")

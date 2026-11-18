@@ -46,8 +46,8 @@ class TestNumberText(unittest.TestCase):
 
     def test_formats(self):
         self.assertEqual(number_text(3), "3")
-        self.assertEqual(number_text(0.5), "0.5")
-        self.assertEqual(number_text(1.5), "1.5")
+        self.assertEqual(number_text(0.5), "1/2")
+        self.assertEqual(number_text(1.5), "3/2")
         self.assertEqual(number_text(-2), "-2")
 
 
@@ -104,10 +104,22 @@ class TestCourseSchemes(unittest.TestCase):
         y_sum = model.inputs_of("Integrator y'")[0].source
         self.assertIn(z_dot, [line.source for line in model.inputs_of(y_sum)])
 
+    def test_exercise_12_algebraic_loop(self):
+        """Exercise 12: same Gains as the professor, and each third derivative feeds the other Sum."""
+        model = model_of("12")
+        gains = sorted(block.parameters["Gain"] for block in model.of_kind("Gain"))
+        self.assertEqual(gains, sorted(["1/2", "1/3", "3/2", "3", "5", "5", "5", "2", "2", "2", "2", "2", "2"]))
+        y_sum = model.inputs_of(model.inputs_of("Integrator y''")[0].source)[0].source
+        z_sum = model.inputs_of(model.inputs_of("Integrator z''")[0].source)[0].source
+        z_third = model.inputs_of("Integrator z''")[0].source
+        y_third = model.inputs_of("Integrator y''")[0].source
+        self.assertIn(z_third, [line.source for line in model.inputs_of(y_sum)])
+        self.assertIn(y_third, [line.source for line in model.inputs_of(z_sum)])
+
     def test_initial_conditions(self):
         model = model_of("1", {("y", 0): 1, ("y", 1): 0.5})
         self.assertEqual(model.block("Integrator y").parameters["InitialCondition"], "1")
-        self.assertEqual(model.block("Integrator y'").parameters["InitialCondition"], "0.5")
+        self.assertEqual(model.block("Integrator y'").parameters["InitialCondition"], "1/2")
 
     def test_default_initial_conditions_are_zero(self):
         model = model_of("10")

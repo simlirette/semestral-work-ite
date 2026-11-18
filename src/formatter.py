@@ -9,7 +9,8 @@ Two outputs are produced from the same equations:
 Notation follows the course: dots above the variable up to the third
 derivative, then the order as a superscript in parentheses, y⁽⁴⁾.
 The solved form isolates the highest derivative of each equation the
-way it is done on paper, for example ẏ(t) = (0.5u(t) − 3y(t)) / 2.
+way it is done on paper, for example ẏ(t) = (u(t)/2 − 3y(t)) / 2.
+Fractions always stay fractions: 0.5 is shown as 1/2.
 """
 
 import re
@@ -28,6 +29,7 @@ _NAME_PARTS = re.compile(r"([A-Za-z]+?)_?(\d*)$")
 
 
 # ---------------------------------------------------------------- notation
+
 
 def _base_and_index(name: str) -> tuple:
     """Split ``x1`` or ``x_1`` into the letter part and the subscript."""
@@ -75,22 +77,6 @@ def derivative_text(name: str, order: int) -> str:
 
 # ---------------------------------------------------------------- printers
 
-def _decimals(expr: sympy.Expr) -> sympy.Expr:
-    """Show fractions such as 1/2 as 0.5 when they have a short decimal form."""
-    replacements = {}
-    for number in expr.atoms(sympy.Rational):
-        if number.q != 1 and _is_short_decimal(number.q):
-            replacements[number] = sympy.Float(number, 15)
-    return expr.xreplace(replacements)
-
-
-def _is_short_decimal(denominator: int) -> bool:
-    """True if 1/denominator has a finite decimal form (only factors 2 and 5)."""
-    for factor in (2, 5):
-        while denominator % factor == 0:
-            denominator //= factor
-    return denominator == 1
-
 
 def _join_terms(terms: list, printer) -> str:
     """Join terms with + and − signs, writing 0 for an empty sum."""
@@ -111,16 +97,12 @@ class _TimeSignalMixin:
     """Printer behaviour shared by the LaTeX and plain-text printers.
 
     Every variable is printed as a signal of time, ``y(t)``; the exponent
-    of a power goes before ``(t)`` (ẏ³(t) rather than ẏ(t)³); floats have
-    no trailing zeros; and inside parentheses positive terms come first,
-    as in (ẋ₂ − ẋ₁).
+    of a power goes before ``(t)`` (ẏ³(t) rather than ẏ(t)³); and inside
+    parentheses positive terms come first, as in (ẋ₂ − ẋ₁).
     """
 
     def _print_Symbol(self, expr):
         return f"{self._name(expr)}(t)"
-
-    def _print_Float(self, expr):
-        return f"{float(expr):g}"
 
     def _print_Pow(self, expr):
         base, exponent = expr.as_base_exp()
@@ -163,6 +145,7 @@ def _tidy_text(text: str) -> str:
 
 # ---------------------------------------------------------------- output
 
+
 def equation_lines(system: ParsedSystem, printer_type: str) -> tuple:
     """Return the interpreted and solved equations as printable lines.
 
@@ -177,7 +160,7 @@ def equation_lines(system: ParsedSystem, printer_type: str) -> tuple:
     printer = _Latex() if printer_type == "latex" else _Text()
 
     def side(expr, variables):
-        return _join_terms(ordered_terms(_decimals(expr), variables), printer)
+        return _join_terms(ordered_terms(expr, variables), printer)
 
     interpreted = []
     for equation, source in zip(system.equations, system.sources):
@@ -188,7 +171,7 @@ def equation_lines(system: ParsedSystem, printer_type: str) -> tuple:
     for symbol, numerator, denominator, variables in isolate_equations(system):
         left = printer._print(symbol)
         top = side(numerator, variables)
-        bottom = printer._print(_decimals(denominator))
+        bottom = printer._print(denominator)
         if denominator == 1:
             solved.append(f"{left} = {top}")
         elif printer_type == "latex":
@@ -231,7 +214,7 @@ def initial_condition_lines(system: ParsedSystem, conditions: dict, printer_type
     separator = r",\quad " if printer_type == "latex" else ", "
 
     def value(name, k):
-        number = _decimals(sympy.sympify(conditions.get((name, k), 0)))
+        number = sympy.sympify(conditions.get((name, k), 0))
         return f"{name_of(name, k)}(0) = {printer._print(number)}"
 
     return [separator.join(value(name, k) for k in range(order)) for name, order in system.orders.items()]

@@ -8,7 +8,7 @@ The model follows the method taught in the course (lectures 1 and 2):
    equation with a + or − sign (coefficients are positive Gain values,
    the sign is on the Sum);
 3. a Gain 1/a after the Sum when the highest derivative has a
-   coefficient a, as in ẏ = (0.5u − 3y) / 2;
+   coefficient a, as in ẏ = (u/2 − 3y) / 2;
 4. Product, Abs and Fcn blocks for nonlinear terms (ÿ·|ẏ|, ẏ³);
 5. a Step block for each input signal, and a Scope showing the inputs
    and the variables. As on the solution schemes, a single equation
@@ -112,10 +112,11 @@ def signal_label(name: str, order: int) -> str:
 
 
 def number_text(value) -> str:
-    """Write a number for a block parameter: 3, 0.5 or 5/14."""
-    value = sympy.nsimplify(value)
-    if value.is_Integer:
-        return str(value)
+    """Write a number for a block parameter: 3, -2 or 1/2.
+
+    Fractions always stay fractions, so 0.5 is written 1/2.
+    """
+    return str(sympy.nsimplify(value))
     if value.is_Rational:
         denominator = value.q
         for factor in (2, 5):
@@ -252,18 +253,17 @@ def build_block_model(system: ParsedSystem, initial_conditions: dict = None) -> 
                         for name, order in system.orders.items()}
 
     rows = isolate_equations(system)
-    highest = {row[0] for row in rows}
-    pending = list(rows)
-    while pending:
-        # Build an equation once the highest derivatives it uses exist.
-        for row in pending:
-            symbol, numerator, denominator, _ = row
-            needed = (numerator.free_symbols & highest) - {symbol}
-            if needed <= set(builder.signals):
-                break
-        pending.remove(row)
-        builder.variables = row[3]
+    # An equation may use the highest derivative of another one before that
+    # one is built (z⃛ in the equation of y, exercise 12). Its wire starts
+    # from a placeholder, replaced at the end by the block that outputs it.
+    highest = [row[0] for row in rows]
+    builder.signals.update({symbol: f"<{symbol}>" for symbol in highest})
+    for symbol, numerator, denominator, variables in rows:
+        builder.variables = variables
         _build_equation(builder, symbol, numerator, denominator, first_integrator)
+    output = {f"<{symbol}>": builder.signals[symbol] for symbol in highest}
+    builder.model.lines = [Line(output.get(line.source, line.source), line.target, line.target_port, line.label)
+                           for line in builder.model.lines]
 
     _add_scope(builder, system, rows)
     return builder.model

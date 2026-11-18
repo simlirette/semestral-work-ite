@@ -19,7 +19,6 @@ Example:
 import itertools
 import re
 from dataclasses import dataclass
-from graphlib import CycleError, TopologicalSorter
 
 import sympy
 from sympy.parsing.sympy_parser import (
@@ -49,6 +48,7 @@ _ALLOWED_TEXT = re.compile(r"[A-Za-z0-9_'+\-*/^().=;\s]+")
 _IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
 _DERIVATIVE = re.compile(r"([A-Za-z][A-Za-z0-9_]*)('+)")
 _FUNCTION_CALL = re.compile(r"([A-Za-z][A-Za-z0-9_]*)\s*\(")
+_INITIAL_CONDITION = re.compile(r"\s*([A-Za-z][A-Za-z0-9_]*)('*)\s*\(\s*0\s*\)\s*=\s*(.+?)\s*")
 _DERIVATIVE_MARK = "__d"
 _MAX_EQUATIONS_TO_MATCH = 6
 
@@ -139,9 +139,6 @@ def parse_system(text: str) -> ParsedSystem:
     return ParsedSystem(tuple(equations), orders, tuple(inputs), solved, tuple(pieces))
 
 
-_INITIAL_CONDITION = re.compile(r"\s*([A-Za-z][A-Za-z0-9_]*)('*)\s*\(\s*0\s*\)\s*=\s*(.+?)\s*")
-
-
 def parse_initial_conditions(text: str, orders: dict) -> dict:
     """Read the starting values of the variables, written like y(0)=1, y'(0)=0.5.
 
@@ -183,6 +180,7 @@ def parse_initial_conditions(text: str, orders: dict) -> dict:
             raise EquationError(f"The value of {label}(0) must be a number, not: {number}")
         values[(name, order)] = value
     return values
+
 
 def _parse_equation(text: str) -> sympy.Eq:
     """Turn the text of one equation into a SymPy equation."""
@@ -307,24 +305,17 @@ def _isolate(expression: sympy.Expr, target: sympy.Symbol, highest: set):
     return numerator, coefficient
 
 
-def _has_loop(dependencies: dict) -> bool:
-    """True if the highest derivatives depend on each other in a circle."""
-    try:
-        TopologicalSorter(dependencies).prepare()
-    except CycleError:
-        return True
-    return False
-
-
 def isolate_equations(system: ParsedSystem) -> list:
     """Return how each equation is solved for a highest derivative.
 
     Each equation is matched with the unknown whose highest derivative it
     is solved for, preferring the variable written first in it. Highest
-    derivatives of other variables may stay in the result (ż in
-    ÿ = −5ẏ − y − ż − ẋ), as in the course, as long as they do not depend
-    on each other in a circle. When no such matching exists (exercise 12),
-    the fully solved expressions from the parser are used.
+    derivatives of other variables stay in the result, as in the course:
+    ż in ÿ = −5ẏ − y − ż − ẋ (exercise 6). They may even need each other,
+    like y⃛ and z⃛ in exercise 12: Simulink solves this "algebraic loop",
+    as in the professor's solution. With more than 6 equations, trying
+    every matching would be too slow, so the fully solved expressions
+    from the parser are used instead.
 
     Returns:
         A list of ``(highest_symbol, numerator, denominator, variables)``
@@ -340,12 +331,6 @@ def isolate_equations(system: ParsedSystem) -> list:
         for assignment in itertools.permutations(names):
             rows = [_isolate(e, highest[n], set(highest.values())) for e, n in zip(expressions, assignment)]
             if None in rows:
-                continue
-            dependencies = {
-                name: {other for other in names if other != name and row[0].has(highest[other])}
-                for name, row in zip(assignment, rows)
-            }
-            if _has_loop(dependencies):
                 continue
             score = sum(order[0] == name for order, name in zip(orders, assignment))
             if best is None or score > best[0]:

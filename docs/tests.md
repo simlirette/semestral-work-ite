@@ -6,7 +6,7 @@
 python test_main.py
 ```
 
-This runs all 81 tests in the `tests/` folder. None of them needs MATLAB.
+This runs all 82 tests in the `tests/` folder. None of them needs MATLAB.
 
 ## How I test the program
 
@@ -29,7 +29,7 @@ text → parser → formatter / confirmation → block_model → matlab_generato
 | `test_parser.py` | 27 | The equation is read and solved like in class. Wrong equations and wrong initial conditions are refused. |
 | `test_formatter.py` | 17 | The equations are written in class notation: dots for derivatives, y⁽⁴⁾ from the 4th one, fractions. |
 | `test_confirmation.py` | 6 | The question "Is this what you meant?" works with yes, no and wrong answers. |
-| `test_block_model.py` | 16 | The blocks are the same as in the professor's schemes, and every block is connected. |
+| `test_block_model.py` | 17 | The blocks are the same as in the professor's schemes, and every block is connected. |
 | `test_matlab_generator.py` | 15 | The MATLAB script has one `add_block` per block, one `add_line` per wire, and valid MATLAB text. |
 
 ## Examples of inputs and outputs
@@ -41,7 +41,7 @@ text → parser → formatter / confirmation → block_model → matlab_generato
 | `y'' + 3y' = u` (exercise 1) | ÿ(t) = u(t) − 3ẏ(t) |
 | `3y'' + y' + 2y = u` (exercise 11) | ÿ(t) = (u(t) − ẏ(t) − 2y(t)) / 3 |
 | `y'' + 2y'^3 + y = u` (exercise 2) | ÿ(t) = u(t) − 2ẏ³(t) − y(t) |
-| `y''' + 3y''*abs(y') + 0.5y' + y'^2*y = u` (exercise 8) | y⃛(t) = u(t) − 3ÿ(t)·\|ẏ(t)\| − 0.5ẏ(t) − y(t)·ẏ²(t) |
+| `y''' + 3y''*abs(y') + 0.5y' + y'^2*y = u` (exercise 8) | y⃛(t) = u(t) − 3ÿ(t)·\|ẏ(t)\| − ẏ(t)/2 − y(t)·ẏ²(t) |
 | `y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v` (exercise 3) | y⃛(t) = u(t) − 5ÿ(t) − 2ẏ(t) − y(t) − z(t)<br>z̈(t) = v(t) − ż(t) − z(t) − y(t) |
 
 ### Equation → Simulink blocks
@@ -53,6 +53,9 @@ text → parser → formatter / confirmation → block_model → matlab_generato
 | `y'' + 2y'^3 + y = u` (exercise 2) | 2 Integrators, 1 Fcn (u^3), 1 Gain (2), 1 Sum (+ − −), 1 Step, 1 Scope |
 | `y''' + 3y''*abs(y') + 0.5y' + y'^2*y = u` (exercise 8) | 3 Integrators, 1 Abs, 2 Products, 1 Fcn (u^2), 2 Gains, 1 Sum (+ − − −), 1 Step, 1 Scope |
 | exercise 3 (system of 2 equations) | 5 Integrators, 2 Gains, 2 Sums, 2 Steps, 2 Muxes, 1 Scope |
+| exercise 12 (system of 2 equations, both with y''' and z''') | 6 Integrators, 13 Gains (1/2, 1/3, 3/2, 3, three 5, six 2), 2 Sums, 1 Step, 1 Mux, 1 Scope. y⃛ goes straight into the Sum of z⃛ and z⃛ into the Sum of y⃛, like the professor's solution. |
+
+Decimals are always shown as fractions: `0.5y'` gives a Gain `1/2`.
 
 A single equation has no Mux: u and y go straight to the Scope, like in the professor's solutions.
 
@@ -92,3 +95,4 @@ Two things can't be checked by an automatic test, so I check them myself.
 | 11 with `--ic "y(0)=1"` | The Scope starts at y = 1 | ✅ |
 | 3: `y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v` | Same blocks as the professor's scheme, one Mux per equation, the model runs | ✅ |
 | 8: `y''' + 3y''*abs(y') + 0.5y' + y'^2*y = u` | Same blocks as the professor's scheme (an Fcn block u^2 for ẏ², like the u^3 block in his exercise 2), no Mux, the model runs | ✅ |
+| 12: `2y''' + 5y'' + y' + 2y + z''' + 1.5z'' + 2z' + 2z = u ; 3z''' + 2z'' + 5z' + 2z - y''' - 5y'' - 3y' - 2y = 0` | Same blocks as the professor's scheme (Gains 1/2 and 1/3, y⃛ and z⃛ feeding each other's Sum), the model runs | ✅ |

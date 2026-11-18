@@ -70,6 +70,8 @@ python main.py "EQUATION" [--ic VALUES] [--name NAME] [--output FOLDER] [--no-gu
 | `;` | separates the equations of a system |
 | `u`, `v`, `F`... | a letter without an apostrophe is an input (a Step block) |
 
+Decimals work, but the program always shows them as fractions, the same way for every number: `0.5y'` is shown as ẏ/2, and its Gain is `1/2`.
+
 You can write `(t)` after a variable or leave it out: `y''(t) + 3y'(t) = u(t)` is the same as `y'' + 3y' = u`.
 
 ### Writing the initial conditions
@@ -106,7 +108,7 @@ python main.py "y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v"  # system 
        ÿ(t) = (u(t) - ẏ(t) - 2y(t)) / 3
 
    Initial conditions:
-       y(0) = 1, ẏ(0) = 0.5
+       y(0) = 1, ẏ(0) = 1/2
 
    Is this what you meant? [y/n]:
    ```
