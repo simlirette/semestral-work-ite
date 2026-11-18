@@ -2,7 +2,7 @@
 
 You write a differential equation as plain text. The program builds the matching Simulink model, so you can check the model you made by hand.
 
-> Version 1.0 is almost ready. The test documentation and the diagrams are still to come.
+> Version 1.0 is almost ready. The diagrams are still to come.
 
 ## Purpose
 
@@ -110,6 +110,8 @@ python test_main.py
 
 All the tests are in the `tests/` folder. None of them needs MATLAB.
 
+How I test the program, with examples of inputs and outputs: [docs/tests.md](docs/tests.md).
+
 ## Project structure
 
 ```
@@ -120,6 +122,7 @@ src/
   block_model.py       turns the equations into Simulink blocks and wires
   matlab_generator.py  writes the MATLAB script that builds the model
 tests/                 one test file per module
+docs/tests.md          how the program is tested
 main.py                runs the program
 test_main.py           runs all the tests
 ```
