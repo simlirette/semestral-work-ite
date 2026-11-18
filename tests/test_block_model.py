@@ -57,7 +57,7 @@ class TestCourseSchemes(unittest.TestCase):
     def test_exercise_1(self):
         model = model_of("1")
         self.assertEqual(kinds(model),
-                         {"Integrator": 2, "Step": 1, "Gain": 1, "Sum": 1, "Mux": 1, "Scope": 1})
+                         {"Integrator": 2, "Step": 1, "Gain": 1, "Sum": 1, "Scope": 1})
         self.assertEqual(model.of_kind("Gain")[0].parameters["Gain"], "3")
         total = model.of_kind("Sum")[0]
         self.assertEqual(total.parameters["Inputs"], "+-")
@@ -122,6 +122,13 @@ class TestCourseSchemes(unittest.TestCase):
         self.assertEqual(labels, [["u", "y"], ["v", "z"]])
         scope = model.of_kind("Scope")[0]
         self.assertEqual([line.source for line in model.inputs_of(scope.name)], ["Mux1", "Mux2"])
+
+    def test_single_equation_has_no_mux(self):
+        """Exercise 11: u and y go to two Scope inputs, without a Mux."""
+        model = model_of("11")
+        self.assertEqual(model.of_kind("Mux"), [])
+        scope = model.of_kind("Scope")[0]
+        self.assertEqual([line.label for line in model.inputs_of(scope.name)], ["u", "y"])
 
     def test_equation_without_input_skips_the_mux(self):
         """Exercise 6: only the second equation contains u."""

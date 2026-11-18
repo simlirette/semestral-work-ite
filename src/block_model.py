@@ -10,9 +10,11 @@ The model follows the method taught in the course (lectures 1 and 2):
 3. a Gain 1/a after the Sum when the highest derivative has a
    coefficient a, as in ẏ = (0.5u − 3y) / 2;
 4. Product, Abs and Fcn blocks for nonlinear terms (ÿ·|ẏ|, ẏ³);
-5. a Step block for each input signal, and one Mux per equation that
-   groups its inputs and its variable (for example [u, y]) before the
-   Scope, as on the solution schemes.
+5. a Step block for each input signal, and a Scope showing the inputs
+   and the variables. As on the solution schemes, a single equation
+   sends each signal to its own Scope input (no Mux); in a system, one
+   Mux per equation groups its inputs and its variable, for example
+   [u, y].
 
 Block parameters use Simulink's own parameter names (``Gain``,
 ``Inputs``, ``InitialCondition``...), so the MATLAB generator can set
@@ -268,11 +270,12 @@ def build_block_model(system: ParsedSystem, initial_conditions: dict = None) -> 
 
 
 def _add_scope(builder, system, rows) -> None:
-    """One Mux per equation ([inputs, variable]) feeding a common Scope.
+    """Connect the inputs and variables to a Scope, as on the course schemes.
 
-    Each input is shown with the first equation that uses it. When an
-    equation has no input of its own, its variable goes straight to the
-    Scope without a Mux.
+    A single equation needs no Mux: each signal (u, then y) gets its own
+    Scope input. In a system, one Mux per equation groups [inputs,
+    variable]; each input is shown with the first equation that uses it,
+    and an equation without an input of its own skips the Mux.
     """
     inputs_of = {}
     shown = set()
@@ -286,6 +289,8 @@ def _add_scope(builder, system, rows) -> None:
 
     groups = [[sympy.Symbol(i) for i in inputs_of[name]] + [derivative_symbol(name, 0)]
               for name in system.orders]
+    if len(groups) == 1:
+        groups = [[symbol] for symbol in groups[0]]
     scope = builder.add("Scope", NumInputPorts=len(groups))
     for port, group in enumerate(groups, start=1):
         if len(group) == 1:
