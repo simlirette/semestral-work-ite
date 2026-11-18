@@ -19,6 +19,7 @@ Example:
 import itertools
 import re
 from dataclasses import dataclass
+from graphlib import CycleError, TopologicalSorter
 
 import sympy
 from sympy.parsing.sympy_parser import (
@@ -28,6 +29,7 @@ from sympy.parsing.sympy_parser import (
     rationalize,
     standard_transformations,
 )
+from sympy.solvers.solveset import NonlinearError
 
 
 class EquationError(ValueError):
@@ -204,24 +206,19 @@ def _solve_for_highest(equations: list, orders: dict) -> dict:
     expressions = [eq.lhs - eq.rhs for eq in equations]
     highest = [derivative_symbol(name, order) for name, order in orders.items()]
 
-    for expression in expressions:
-        for symbol in highest:
-            if sympy.diff(expression, symbol).free_symbols & set(highest):
-                raise EquationError(
-                    "The highest derivatives must appear linearly "
-                    "(not squared, multiplied together or inside a function)."
-                )
-
-    matrix, constants = sympy.linear_eq_to_matrix(expressions, highest)
+    try:
+        matrix, constants = sympy.linear_eq_to_matrix(expressions, highest)
+    except NonlinearError:
+        raise EquationError(
+            "The highest derivatives must appear linearly "
+            "(not squared, multiplied together or inside a function)."
+        ) from None
     if matrix.det() == 0:
         raise EquationError("The equations cannot be solved for the highest derivatives.")
 
     if len(highest) == 1:
-        solution = [constants[0] / matrix[0, 0]]
-    else:
-        solution = list(matrix.LUsolve(constants))
-    return {name: sympy.simplify(value) if len(highest) > 1 else value
-            for name, value in zip(orders, solution)}
+        return {name: constants[0] / matrix[0, 0] for name in orders}
+    return {name: sympy.simplify(value) for name, value in zip(orders, matrix.LUsolve(constants))}
 
 
 def variable_order(source: str, system: ParsedSystem) -> list:
@@ -267,21 +264,11 @@ def _isolate(expression: sympy.Expr, target: sympy.Symbol, highest: set):
 
 def _has_loop(dependencies: dict) -> bool:
     """True if the highest derivatives depend on each other in a circle."""
-    visiting, done = set(), set()
-
-    def visit(name):
-        if name in done:
-            return False
-        if name in visiting:
-            return True
-        visiting.add(name)
-        if any(visit(other) for other in dependencies[name]):
-            return True
-        visiting.discard(name)
-        done.add(name)
-        return False
-
-    return any(visit(name) for name in dependencies)
+    try:
+        TopologicalSorter(dependencies).prepare()
+    except CycleError:
+        return True
+    return False
 
 
 def isolate_equations(system: ParsedSystem) -> list:

@@ -58,34 +58,28 @@ class TestScript(unittest.TestCase):
         self.assertIn("%   3y'' + y' + 2y = u", self.script)
 
     def test_blocks_with_parameters(self):
-        self.assertIn("add_block('simulink/Math Operations/Gain', [model '/' 'Gain2'], 'Gain', '1/3', "
-                      "'Position', [", self.script)
-        # Sum slots from the layout: two empty slots on top, u on the left,
-        # then 2y and y' coming from below.
-        self.assertIn("'IconShape', 'round', 'Inputs', '||+--'", self.script)
-        self.assertIn("route(model, 'Step u', 'Sum1', 1, NaN, [1 ", self.script)
+        self.assertIn("add_block('simulink/Math Operations/Gain', [model '/' 'Gain2'], 'Gain', '1/3');",
+                      self.script)
+        # Round Sum, as in the course, with an empty first slot.
+        self.assertIn("'IconShape', 'round', 'Inputs', '|+--'", self.script)
         self.assertIn("[model '/' 'Integrator y'''], 'InitialCondition', '0'", self.script)
 
     def test_labelled_line(self):
-        expected = ("h = route(model, 'Gain2', 'Integrator y''', 1, NaN, zeros(0, 2));\n"
+        expected = ("h = add_line(model, 'Gain2/1', 'Integrator y''/1');\n"
                     "set_param(h, 'Name', 'y''''');")
         self.assertIn(expected, self.script)
 
-    def test_branch_lines_after_port_lines(self):
-        """A branch starts on an existing line, so it must be drawn later."""
-        trunk = self.script.index("route(model, 'Integrator y''', 'Integrator y', 1, NaN")
-        branch = self.script.index("route(model, 'Integrator y''', 'Sum1', 3, ")
-        self.assertLess(trunk, branch)
+    def test_lines_after_blocks(self):
+        """A line can only be drawn once both of its blocks exist."""
+        last_block = self.script.rindex("add_block(")
+        first_line = self.script.index("add_line(")
+        self.assertLess(last_block, first_line)
 
-    def test_route_function_included(self):
-        self.assertIn("function h = route(model, source, target, port, tapX, moves)", self.script)
-        self.assertTrue(self.script.rstrip().endswith("end"))
-
-    def test_positions_and_orientation(self):
-        """Every block gets a position; the feedback Gain 2 faces left."""
-        self.assertEqual(self.script.count("'Position', ["), self.script.count("add_block("))
-        gain = next(line for line in self.script.splitlines() if "'Gain1'" in line and "add_block" in line)
-        self.assertIn("'Orientation', 'left'", gain)
+    def test_simulink_arranges_the_diagram(self):
+        """No positions are computed: Simulink lays the blocks out itself."""
+        self.assertNotIn("'Position'", self.script)
+        arrange = self.script.index("Simulink.BlockDiagram.arrangeSystem(model);")
+        self.assertLess(self.script.rindex("add_line("), arrange)
 
     def test_each_signal_named_once(self):
         """Step u branches to the Sum and the Mux, but is named only once."""
@@ -117,7 +111,7 @@ class TestEveryBlockAndLine(unittest.TestCase):
             script = generate_script(model)
             with self.subTest(text=text):
                 self.assertEqual(script.count("add_block("), len(model.blocks))
-                drawn = re.findall(r"^(?:h = )?(?:route|add_line)\(model, '", script, re.MULTILINE)
+                drawn = re.findall(r"^(?:h = )?add_line\(model, '", script, re.MULTILINE)
                 self.assertEqual(len(drawn), len(model.lines))
                 used = set(re.findall(r"add_block\('([^']+)'", script))
                 self.assertTrue(used <= set(LIBRARY.values()))

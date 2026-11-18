@@ -46,31 +46,26 @@ def open_window(system: ParsedSystem):
     interpreted, solved = to_latex(system)
     first, second = _titles(len(interpreted))
 
-    rows = [("title", first)] + [("math", line) for line in interpreted]
-    rows += [("title", second)] + [("math", line) for line in solved]
+    # Each row: (text, x, height, style). Titles are small and grey;
+    # equations are drawn by matplotlib's math renderer.
+    title = dict(fontsize=_TITLE_SIZE, color="#555555")
+    math = dict(fontsize=_FONT_SIZE, color="black")
+    rows = []
+    for heading, lines in ((first, interpreted), (second, solved)):
+        rows.append((heading, _MARGIN / 2, 0.45, title))
+        rows += [(f"${line}$", _MARGIN, 1.0 if r"\dfrac" in line else 0.6, math) for line in lines]
 
-    def height(kind, text):
-        if kind == "title":
-            return 0.45
-        return 1.0 if r"\dfrac" in text else 0.6
-
-    total = sum(height(kind, text) for kind, text in rows) + 2 * _MARGIN
+    total = sum(row[2] for row in rows) + 2 * _MARGIN
     figure = plt.figure(figsize=(8, total), facecolor="white")
     if figure.canvas.manager is not None:
         figure.canvas.manager.set_window_title("Check the equation")
 
     top = total - _MARGIN
     texts = []
-    for kind, text in rows:
-        step = height(kind, text)
-        if kind == "title":
-            artist = figure.text(_MARGIN / 2, top - step / 2, text, fontsize=_TITLE_SIZE,
-                                 color="#555555", va="center", transform=figure.dpi_scale_trans)
-        else:
-            artist = figure.text(_MARGIN, top - step / 2, f"${text}$", fontsize=_FONT_SIZE,
-                                 color="black", va="center", transform=figure.dpi_scale_trans)
-        texts.append(artist)
-        top -= step
+    for text, x, height, style in rows:
+        texts.append(figure.text(x, top - height / 2, text, va="center",
+                                 transform=figure.dpi_scale_trans, **style))
+        top -= height
 
     # Widen the window to fit the longest equation.
     renderer = figure.canvas.get_renderer()

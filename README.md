@@ -19,7 +19,7 @@ The student solves the exercise first, then generates the reference model and co
 
 ## Installation
 
-Requires Python 3.10 or newer. Running the generated script requires MATLAB with Simulink (generating it does not).
+Requires Python 3.10 or newer. Running the generated script requires MATLAB R2018a or newer with Simulink (generating it does not).
 
 ```bash
 git clone https://github.com/simlirette/semestral-work-ite.git
@@ -101,7 +101,6 @@ src/
   formatter.py         equations → mathematical notation (window and terminal)
   confirmation.py      shows the equations and asks the user to confirm
   block_model.py       equations → Simulink blocks and connections
-  layout.py            positions of the blocks and paths of the wires
   matlab_generator.py  blocks → MATLAB script
 tests/                 one test file per module
 main.py                command-line program
@@ -115,7 +114,7 @@ test_main.py           runs all tests
 - An integral on the right-hand side (exercise 4 of the course) is not supported.
 - Physical models with saturation, Goto/From blocks or subsystems (water tanks) are not generated.
 - Only the integrator scheme is generated; the transfer function scheme is planned.
-- The layout follows the course schemes, but coupled systems (for example exercises 6, 7 and 12) can still have crossing wires.
+- The blocks are the ones of the course schemes, but their placement is left to Simulink's automatic layout (`Simulink.BlockDiagram.arrangeSystem`), so the canvas can look different from the course drawings.
 - All initial conditions are 0, and inputs are Step blocks with Simulink's default settings.
 
 ## License
