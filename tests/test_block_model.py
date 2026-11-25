@@ -1,7 +1,7 @@
 """Tests for src/block_model.py.
 
-Specific tests compare the generated blocks with the solution schemes
-of the course exercises (for example exercise 1: two Integrators, a
+Specific tests compare the generated blocks with the known solutions
+of solved exercises (for example exercise 1: two Integrators, a
 Gain 3 and a Sum with signs + −). A structural test then checks, for
 every exercise, that the model is complete: each input port receives
 exactly one line, and every block except the Scope is used.
@@ -29,7 +29,7 @@ EXERCISES = {
 
 
 def model_of(number, initial_conditions=None):
-    """Build the block model of one course exercise."""
+    """Build the block model of one solved exercise."""
     return build_block_model(parse_system(EXERCISES[number]), initial_conditions)
 
 
@@ -51,8 +51,8 @@ class TestNumberText(unittest.TestCase):
         self.assertEqual(number_text(-2), "-2")
 
 
-class TestCourseSchemes(unittest.TestCase):
-    """Blocks match the solution schemes of the exercises."""
+class TestExpectedBlocks(unittest.TestCase):
+    """Blocks match the known solutions of the exercises."""
 
     def test_exercise_1(self):
         model = model_of("1")
@@ -105,7 +105,7 @@ class TestCourseSchemes(unittest.TestCase):
         self.assertIn(z_dot, [line.source for line in model.inputs_of(y_sum)])
 
     def test_exercise_12_algebraic_loop(self):
-        """Exercise 12: same Gains as the professor, and each third derivative feeds the other Sum."""
+        """Exercise 12: the expected 13 Gains, and each third derivative feeds the other Sum."""
         model = model_of("12")
         gains = sorted(block.parameters["Gain"] for block in model.of_kind("Gain"))
         self.assertEqual(gains, sorted(["1/2", "1/3", "3/2", "3", "5", "5", "5", "2", "2", "2", "2", "2", "2"]))

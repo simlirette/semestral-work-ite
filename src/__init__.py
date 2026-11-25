@@ -1,1 +1,1 @@
-"""Source package of the Simulink reference generator."""
+"""Source package of the Simulink model generator."""

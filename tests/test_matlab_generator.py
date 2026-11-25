@@ -34,7 +34,7 @@ class TestModelName(unittest.TestCase):
     """Model names must be valid MATLAB names."""
 
     def test_valid_names(self):
-        for name in ("reference_model", "exercise11", "E2b"):
+        for name in ("my_model", "exercise11", "E2b"):
             check_model_name(name)
 
     def test_invalid_names(self):
@@ -60,7 +60,7 @@ class TestScript(unittest.TestCase):
     def test_blocks_with_parameters(self):
         self.assertIn("add_block('simulink/Math Operations/Gain', [model '/' 'Gain2'], 'Gain', '1/3');",
                       self.script)
-        # Round Sum, as in the course, with an empty first slot.
+        # Round Sum, with an empty first slot.
         self.assertIn("'IconShape', 'round', 'Inputs', '|+--'", self.script)
         self.assertIn("[model '/' 'Integrator y'''], 'InitialCondition', '0'", self.script)
 

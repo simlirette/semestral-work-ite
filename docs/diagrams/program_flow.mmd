@@ -3,7 +3,7 @@ flowchart TD
     read --> solve["Solve each equation<br>for its highest derivative"]
     solve --> ok{"Written<br>correctly?"}
     ok -- no --> why["Show why and stop"] --> stop1(("●"))
-    ok -- yes --> show["Show the equations in class notation<br>(window and terminal)"]
+    ok -- yes --> show["Show the equations in math notation<br>(window and terminal)"]
     show --> confirm{"Is this what<br>you meant?"}
     confirm -- no --> stop2(("●"))
     confirm -- yes --> blocks["Turn the equations into<br>Simulink blocks and wires"]

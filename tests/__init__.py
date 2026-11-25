@@ -1,1 +1,1 @@
-"""Automated tests for the Simulink reference generator."""
+"""Automated tests for the Simulink model generator."""

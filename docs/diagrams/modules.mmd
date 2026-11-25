@@ -51,7 +51,7 @@ classDiagram
     main ..> confirmation : 2. asks the user
     main ..> block_model : 3. builds the blocks
     main ..> matlab_generator : 4. writes the script
-    confirmation ..> formatter : writes in class notation
+    confirmation ..> formatter : writes in math notation
     parser ..> ParsedSystem : creates
     block_model ..> BlockModel : creates
     BlockModel *-- Block

@@ -1,13 +1,13 @@
-"""Entry point of the Simulink reference generator.
+"""Entry point of the Simulink model generator.
 
 Run with:
     python main.py "y'' + 3y' = u"
-    python main.py "y'' + 3y' = u" --no-gui --name exercise1
+    python main.py "2x'' + 0.5x' + 8x = F" --no-gui --name spring
     python main.py "y'' + 3y' = u" --ic "y(0)=1, y'(0)=0.5"
 
 The program reads the equation, asks the user to confirm how it was
-understood, then writes a MATLAB script that builds the reference
-Simulink model.
+understood, then writes a MATLAB script that builds the Simulink
+model.
 """
 
 import argparse
@@ -21,10 +21,9 @@ from src.parser import EquationError, parse_initial_conditions, parse_system
 
 # Shown at the end of "python main.py -h", ready to copy.
 EXAMPLES = """examples:
-  python main.py "y'' + 3y' = u"
-  python main.py "5y''' + 10y'' + 10y' + 2y = u" --name exercise10
+  python main.py "2x'' + 0.5x' + 8x = F" --name spring
   python main.py "y'' + 2y'^3 + y = u"
-  python main.py "y'' + 3y' = u" --ic "y(0)=1, y'(0)=0.5"
+  python main.py "x'' + 0.5x' + 9.81sin(x) = 0" --ic "x(0)=1" --name pendulum
   python main.py "y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v"
 """
 
@@ -42,8 +41,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
                                          "separate several equations with ';'")
     parser.add_argument("--ic", metavar="VALUES",
                         help="initial conditions, like \"y(0)=1, y'(0)=0.5\" (the others are 0)")
-    parser.add_argument("--name", default="reference_model",
-                        help="name of the Simulink model (default: reference_model)")
+    parser.add_argument("--name", default="my_model",
+                        help="name of the Simulink model (default: my_model)")
     parser.add_argument("--output", default="output",
                         help="folder where the MATLAB script is written (default: output)")
     parser.add_argument("--no-gui", action="store_true", help="show the equations as text only")

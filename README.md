@@ -1,41 +1,35 @@
-# Simulink Reference Generator
+# Simulink Model Generator
 
-You write a differential equation as plain text. The program builds the matching Simulink model, so you can check the model you made by hand.
+Type a differential equation as plain text, like `2x'' + 0.5x' + 8x = F` for a mass on a spring. The program writes a MATLAB script that builds the Simulink model of this equation. Run the script in MATLAB, press Run, and the Scope shows the graph of how the system behaves over time.
 
-## Purpose
-
-In a Simulink course, you turn differential equations into block diagrams by hand. This program does the same thing automatically, with the method taught in the course:
-
-1. Isolate the highest derivative of each equation (for example ÿ = u − 3ẏ).
-2. Chain one Integrator per derivative (ÿ → ẏ → y). An Integrator is the block that turns ÿ into ẏ, and ẏ into y.
-3. Send every term back into a Sum block with its sign, through Gain, Product, Abs or power blocks.
-4. Show the input and the result on a Scope.
-
-You solve the exercise first. Then you generate the reference model and compare the two models and their results.
-
-**Who it is for:** students of a "Simulations in MATLAB/Simulink" course, and teachers who prepare the solutions.
+**Who it is for:** anyone who uses MATLAB and Simulink to solve differential equations and wants to see the graphs, to understand how a physical system behaves: a mass on a spring, a pendulum, a system that slows down or oscillates...
 
 ## How it works
 
-**Input:** the equation(s) typed as text in the terminal, and the initial conditions if you want some.
+**Input:** the equation, typed in the terminal. Optionally, the starting values of the variables (initial conditions).
 
 **Outputs:**
-- the equations written like in class, in the terminal and in a small window, so you can check them;
-- a MATLAB script, `build_<name>.m`. When you run it in MATLAB, it builds the Simulink model and saves it as `<name>.slx`.
+- the equation written back in math notation, in the terminal and in a small window, so you can check it was read correctly;
+- a MATLAB script, `build_<name>.m`. Run in MATLAB, it builds the Simulink model and saves it as `<name>.slx`.
 
 The program goes through these steps. If the equation is badly written, or if you answer `n`, it stops before building anything.
 
 <img src="docs/diagrams/program_flow.png" alt="Steps of the program" width="380">
 
-The code is split into one module per step. `main.py` calls them one after the other. The parser gives a `ParsedSystem` (the equations, solved), and `block_model` turns it into a `BlockModel` (the list of blocks and wires) that `matlab_generator` writes as a script.
+The model is built the usual way for a differential equation in Simulink:
+
+1. Isolate the highest derivative: `2x'' + 0.5x' + 8x = F` becomes ẍ = (F − ẋ/2 − 8x) / 2.
+2. Chain one Integrator per derivative: ẍ → ẋ → x. An Integrator is the block that turns ẍ into ẋ, and ẋ into x.
+3. Send every term back into a Sum block with its sign, through Gain blocks (and Product, Abs or Fcn blocks for nonlinear terms).
+4. Show the input and the result on a Scope.
+
+The code has one module per step. `main.py` calls them one after the other:
 
 ![Modules of the program](docs/diagrams/modules.png)
 
-The diagrams are drawn with [Mermaid](https://mermaid.js.org). Their text sources are in `docs/diagrams/` next to the images.
-
 ## Installation
 
-You need Python 3.10 or newer. To open the model, you also need MATLAB R2018a or newer with Simulink. The program itself runs without MATLAB.
+You need Python 3.10 or newer. To run the model, you also need MATLAB R2018a or newer with Simulink. The program itself runs without MATLAB.
 
 ```bash
 git clone https://github.com/simlirette/semestral-work-ite.git
@@ -43,7 +37,7 @@ cd semestral-work-ite
 pip install -r requirements.txt
 ```
 
-The program uses two libraries: [SymPy](https://www.sympy.org) to read and solve the equations, and [matplotlib](https://matplotlib.org) to show them in a window.
+This installs [SymPy](https://www.sympy.org), which reads and solves the equations, and [matplotlib](https://matplotlib.org), which draws them in the window.
 
 ## Usage
 
@@ -54,8 +48,8 @@ python main.py "EQUATION" [--ic VALUES] [--name NAME] [--output FOLDER] [--no-gu
 | Option | What it does | Default |
 |---|---|---|
 | `EQUATION` | The equation(s), in quotes | (required) |
-| `--ic` | Initial conditions, like `"y(0)=1, y'(0)=0.5"` | all 0 |
-| `--name` | Name of the Simulink model and of the `.slx` file | `reference_model` |
+| `--ic` | Initial conditions, like `"x(0)=1, x'(0)=0.5"` | all 0 |
+| `--name` | Name of the Simulink model and of the `.slx` file | `my_model` |
 | `--output` | Folder where the MATLAB script is saved | `output` |
 | `--no-gui` | Show the equations in the terminal only, without a window | off |
 
@@ -63,62 +57,56 @@ python main.py "EQUATION" [--ic VALUES] [--name NAME] [--output FOLDER] [--no-gu
 
 | Write | Meaning |
 |---|---|
-| `y'`, `y''`, `y'''`, `y''''` | 1st, 2nd, 3rd, 4th derivative of y |
-| `3y'` or `3*y'` | 3 times y' |
-| `y'^3` | y' to the power 3 |
-| `abs(y')`, `sqrt(y)`, `sin(y)`, `cos(y)`, `exp(y)` | functions |
+| `x'`, `x''`, `x'''`, `x''''` | 1st, 2nd, 3rd, 4th derivative of x |
+| `3x'` or `3*x'` | 3 times x' |
+| `x'^3` | x' to the power 3 |
+| `abs(x)`, `sqrt(x)`, `sin(x)`, `cos(x)`, `exp(x)` | functions |
 | `;` | separates the equations of a system |
-| `u`, `v`, `F`... | a letter without an apostrophe is an input (a Step block) |
+| `u`, `F`, `v`... | a letter without an apostrophe is an input: a Step block |
 
-Decimals work, but the program always shows them as fractions, the same way for every number: `0.5y'` is shown as ẏ/2, and its Gain is `1/2`.
-
-You can write `(t)` after a variable or leave it out: `y''(t) + 3y'(t) = u(t)` is the same as `y'' + 3y' = u`.
+Decimals work, but they are always shown as fractions: `0.5x'` is shown as ẋ/2, and its Gain is `1/2`. Writing `(t)` after a variable is allowed: `x''(t) + 3x'(t) = u(t)` is the same as `x'' + 3x' = u`.
 
 ### Writing the initial conditions
 
-An initial condition is the value of a variable at the start of the simulation (t = 0). Write them like the equation, separated by commas:
+An initial condition is the value of a variable when the simulation starts (t = 0). Write them like the equation, separated by commas:
 
 ```bash
-python main.py "y'' + 3y' = u" --ic "y(0)=1, y'(0)=0.5"
+python main.py "x'' + 0.5x' + 9.81sin(x) = 0" --ic "x(0)=1"
 ```
 
-- Each value goes into one Integrator. For a 2nd-order equation, you can give y(0) and y'(0), but not y''(0).
+- Each value goes into one Integrator. For a 2nd-order equation, you can give x(0) and x'(0), but not x''(0).
 - Values you don't give are 0.
-- Decimals, negative numbers and fractions work: `y(0)=-2, y'(0)=1/3`.
+- Negative numbers and fractions work: `x(0)=-2, x'(0)=1/3`.
 
 ### Examples
 
 ```bash
-python main.py "y'' + 3y' = u"                                         # exercise 1
-python main.py "5y''' + 10y'' + 10y' + 2y = u" --name exercise10       # coefficient in front of y'''
-python main.py "y'' + 2y'^3 + y = u" --name exercise2                  # nonlinear
-python main.py "y'' + 3y' = u" --ic "y(0)=1, y'(0)=0.5"                # with initial conditions
-python main.py "y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v"  # system (exercise 3)
+python main.py "2x'' + 0.5x' + 8x = F" --name spring                  # mass on a spring, with friction, pushed by a force F
+python main.py "x'' + 0.5x' + 9.81sin(x) = 0" --ic "x(0)=1" --name pendulum   # pendulum let go at 1 rad
+python main.py "y'' + 2y'^3 + y = u"                                  # nonlinear equation
+python main.py "y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v" # two equations that depend on each other
 ```
 
 ### What happens
 
-1. The program shows how it understood your equation, written like in class (dots for derivatives, y⁽⁴⁾ from the 4th one), and the equation solved for the highest derivative. If you gave initial conditions, it shows them too:
+1. The program shows how it read your equation, in math notation (dots for derivatives, x⁽⁴⁾ from the 4th one), and the equation solved for the highest derivative:
 
    ```
    Interpreted equation:
-       3ÿ(t) + ẏ(t) + 2y(t) = u(t)
+       2ẍ(t) + ẋ(t)/2 + 8x(t) = F(t)
 
    Solved for the highest derivative:
-       ÿ(t) = (u(t) - ẏ(t) - 2y(t)) / 3
-
-   Initial conditions:
-       y(0) = 1, ẏ(0) = 1/2
+       ẍ(t) = (F(t) - ẋ(t)/2 - 8x(t)) / 2
 
    Is this what you meant? [y/n]:
    ```
 
-   The same thing also opens in a small window, written like an equation in Word.
+   The same thing opens in a small window, written like an equation in Word.
 
 2. If you answer `y`, it saves the MATLAB script `output/build_<name>.m`.
-3. Run that script in MATLAB. It builds the model, arranges the blocks, opens the model and saves `<name>.slx` next to the script. Press Run and open the Scope to see the results.
+3. Run the script in MATLAB. It builds the model, arranges the blocks, saves `<name>.slx` next to the script and opens it. Press Run, then open the Scope to see the graph.
 
-If the program can't read the equation (no `=`, unknown function, more unknowns than equations...), it tells you why and stops.
+If the program can't read the equation (no `=`, unknown function, more unknowns than equations...), it says why and stops.
 
 ## Running the tests
 
@@ -126,36 +114,33 @@ If the program can't read the equation (no `=`, unknown function, more unknowns 
 python test_main.py
 ```
 
-All the tests are in the `tests/` folder. None of them needs MATLAB.
-
-How I test the program, with examples of inputs and outputs: [docs/tests.md](docs/tests.md).
+All the tests are in the `tests/` folder. None of them needs MATLAB. How the program is tested, with examples of inputs and outputs: [docs/tests.md](docs/tests.md).
 
 ## Project structure
 
 ```
 src/
   parser.py            reads the text: equations and initial conditions
-  formatter.py         writes the equations in class notation (window and terminal)
+  formatter.py         writes the equations in math notation (window and terminal)
   confirmation.py      shows the equations and asks you to confirm
   block_model.py       turns the equations into Simulink blocks and wires
   matlab_generator.py  writes the MATLAB script that builds the model
 tests/                 one test file per module
 docs/tests.md          how the program is tested
-docs/diagrams/         diagrams of the program (images and sources)
+docs/diagrams/         the diagrams above (images and their Mermaid sources)
 main.py                runs the program
 test_main.py           runs all the tests
 ```
 
 ## Limitations
 
-- Each equation must be solvable for its highest derivative. That derivative can't be squared or inside a function.
-- Coefficients must be numbers. In `m*x'' + k*x = F`, m and k are read as input signals, not as values.
-- An integral on the right side of the equation (exercise 4 of the course) is not supported.
-- Physical models like the water tanks (saturation, Goto/From blocks, subsystems) are not generated.
-- Only the Integrator version of the model is generated, not the Transfer Function version.
-- The blocks are the same as in the course solutions, but Simulink places them itself, so the drawing can look different from the professor's.
-- In a system, each equation that has an input gets a Mux (a block that groups signals) before the Scope, as in exercises 3, 7 and 12. In exercises 6 and 9, the professor uses no Mux, so the model has one more block than his solution.
-- Inputs are Step blocks with Simulink's default settings, and the simulation lasts 100 s.
+- The highest derivative must appear simply: `x''^2` or `sin(x'')` can't be solved.
+- Coefficients must be numbers. In `m*x'' + k*x = F`, m and k are read as input signals, not as values: write `2x'' + 8x = F`.
+- Use one-letter names (x, y, z), with digits if needed (x1, x2). Longer names work, but the dots are drawn on their last letter.
+- An integral inside the equation is not supported.
+- Only math blocks are used (Integrator, Sum, Gain, Product, Abs, Fcn). No Saturation, switches or subsystems, and no Transfer Function block.
+- Simulink places the blocks itself, so with many equations the wires can cross.
+- Inputs are Step blocks with Simulink's default settings (0, then 1 from t = 1 s), and the simulation lasts 100 s. Both can be changed in Simulink.
 
 ## License
 

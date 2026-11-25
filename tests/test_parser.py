@@ -1,7 +1,7 @@
 """Tests for src/parser.py.
 
-The valid cases are equations from the course exercise sheet
-("Review of differential equations"), numbered as in the sheet.
+The valid cases are solved exercises whose answer is known,
+numbered as exercises 1 to 12.
 Each test checks that the equation is solved for the right highest
 derivative. The error cases check that badly written equations are
 rejected with an EquationError instead of producing a wrong model.
@@ -133,7 +133,7 @@ class TestInvalidInput(unittest.TestCase):
 
 
 class TestInitialConditions(unittest.TestCase):
-    """Starting values written like y(0)=1, y'(0)=0.5 (lecture "Initial conditions")."""
+    """Starting values written like y(0)=1, y'(0)=0.5."""
 
     def setUp(self):
         self.orders = parse_system("y'' + 3y' = u").orders

@@ -1,6 +1,6 @@
 """Describe the Simulink model of a system of equations as blocks and lines.
 
-The model follows the method taught in the course (lectures 1 and 2):
+The model follows the usual method for a differential equation in Simulink:
 
 1. one Integrator per derivative order, chained from the highest
    derivative down to the variable itself (ÿ → ẏ → y);
@@ -11,7 +11,7 @@ The model follows the method taught in the course (lectures 1 and 2):
    coefficient a, as in ẏ = (u/2 − 3y) / 2;
 4. Product, Abs and Fcn blocks for nonlinear terms (ÿ·|ẏ|, ẏ³);
 5. a Step block for each input signal, and a Scope showing the inputs
-   and the variables. As on the solution schemes, a single equation
+   and the variables. A single equation
    sends each signal to its own Scope input (no Mux); in a system, one
    Mux per equation groups its inputs and its variable, for example
    [u, y].
@@ -109,7 +109,7 @@ class BlockModel:
 
 
 def signal_label(name: str, order: int) -> str:
-    """Signal name with apostrophes, as written on the course schemes (y'')."""
+    """Signal name with apostrophes, as written on Simulink schemes (y'')."""
     # y and 2 give y''. Used for block names and wire labels.
     return name + "'" * order
 
@@ -186,7 +186,7 @@ class _Builder:
             block = self.add("Step", f"Step {expr.name}")
             self.signals[expr] = block
             return block
-        # A number alone, like the 30 in exercise 9.
+        # A number alone, like the 30 in x*(30 - z).
         if expr.is_Number:
             return self.add("Constant", Value=number_text(expr))
         if isinstance(expr, sympy.Add):
@@ -241,7 +241,7 @@ class _Builder:
         A single positive term needs no Sum and is returned directly.
         """
         signs, sources = [], []
-        # The course puts the sign on the Sum, not in the Gain: -3y' becomes
+        # The sign goes on the Sum, not in the Gain: -3y' becomes
         # a "-" input fed by a Gain 3.
         for term in terms:
             negative = term.could_extract_minus_sign()
@@ -276,7 +276,7 @@ def build_block_model(system: ParsedSystem, initial_conditions: dict = None) -> 
     # 2. Each equation, isolated like on paper (see parser.isolate_equations).
     rows = isolate_equations(system)
     # An equation may use the highest derivative of another one before that
-    # one is built (z⃛ in the equation of y, exercise 12). Its wire starts
+    # one is built (z⃛ in the equation of y, when both equations contain y⃛ and z⃛). Its wire starts
     # from a placeholder, replaced at the end by the block that outputs it.
     highest = [row[0] for row in rows]
     builder.signals.update({symbol: f"<{symbol}>" for symbol in highest})
@@ -295,7 +295,7 @@ def build_block_model(system: ParsedSystem, initial_conditions: dict = None) -> 
 
 
 def _add_scope(builder, system, rows) -> None:
-    """Connect the inputs and variables to a Scope, as on the course schemes.
+    """Connect the inputs and variables to a Scope.
 
     A single equation needs no Mux: each signal (u, then y) gets its own
     Scope input. In a system, one Mux per equation groups [inputs,
@@ -317,7 +317,7 @@ def _add_scope(builder, system, rows) -> None:
     # One group per equation: [its inputs..., its variable], like [u, y].
     groups = [[sympy.Symbol(i) for i in inputs_of[name]] + [derivative_symbol(name, 0)]
               for name in system.orders]
-    # One equation: no Mux, each signal on its own Scope input, like the professor.
+    # One equation: no Mux, each signal on its own Scope input.
     if len(groups) == 1:
         groups = [[symbol] for symbol in groups[0]]
     scope = builder.add("Scope", NumInputPorts=len(groups))
@@ -338,7 +338,7 @@ def _build_equation(builder, symbol, numerator, denominator, first_integrator) -
     if denominator.could_extract_minus_sign():
         numerator, denominator = -numerator, -denominator
     name, order = split_symbol(symbol)
-    # The Sum of the top of the fraction, terms in class order.
+    # The Sum of the top of the fraction, terms in the usual order.
     output = builder.sum(ordered_terms(numerator, builder.variables))
     # 3y'' = ... needs a Gain 1/3 after the Sum.
     if denominator != 1:

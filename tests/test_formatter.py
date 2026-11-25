@@ -1,9 +1,9 @@
 """Tests for src/formatter.py.
 
-The expected strings follow the notation of the course: dots up to the
-third derivative, y⁽⁴⁾ from the fourth on, and the highest derivative
-isolated as on the lecture slides, for example
-ẏ = (u/2 − 3y) / 2 from lecture 1. Fractions always stay fractions.
+The expected strings follow the usual notation: dots up to the third
+derivative, y⁽⁴⁾ from the fourth on, and the highest derivative isolated
+as on paper, for example ẏ = (u/2 − 3y) / 2. Fractions always stay
+fractions.
 """
 
 import io
@@ -49,8 +49,8 @@ class TestSingleEquations(unittest.TestCase):
         self.assertEqual(interpreted, [f"y{DOT2}(t) + 3y{DOT1}(t) = u(t)"])
         self.assertEqual(solved, [f"y{DOT2}(t) = u(t) - 3y{DOT1}(t)"])
 
-    def test_lecture_example_fractions(self):
-        """Lecture 1: 2ẏ + 3y = 0.5u gives ẏ = (u/2 − 3y) / 2; 0.5 is shown as a fraction."""
+    def test_fractions(self):
+        """2ẏ + 3y = 0.5u gives ẏ = (u/2 − 3y) / 2; 0.5 is shown as a fraction."""
         interpreted, solved = to_latex(parse_system("2y' + 3y = 0.5u"))
         self.assertEqual(interpreted, [r"2 \dot{y}(t) + 3 y(t) = \frac{u(t)}{2}"])
         self.assertEqual(solved, [r"\dot{y}(t) = \dfrac{\frac{u(t)}{2} - 3 y(t)}{2}"])
@@ -68,13 +68,13 @@ class TestSingleEquations(unittest.TestCase):
         interpreted, _ = to_text(parse_system("y''' + 3y''*abs(y') + 0.5y' + y'^2*y = u"))
         self.assertIn(f"3y{DOT2}(t)·|y{DOT1}(t)|", interpreted[0])
 
-    def test_fifth_order_lecture_task(self):
+    def test_fifth_order(self):
         interpreted, _ = to_latex(parse_system("y''''' + 5.5y'''' + 3.5y''' + 5y'' + y' + y = u"))
         self.assertTrue(interpreted[0].startswith(r"y^{(5)}(t) + \frac{11 y^{(4)}(t)}{2} + \frac{7 \dddot{y}(t)}{2}"))
 
 
 class TestSystems(unittest.TestCase):
-    """Systems are solved one equation at a time, as in lecture 2."""
+    """Systems are solved one equation at a time."""
 
     def test_exercise_3(self):
         _, solved = to_text(parse_system("y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v"))
@@ -91,7 +91,7 @@ class TestSystems(unittest.TestCase):
         self.assertEqual(solved[1], f"z{DOT1}(t) = u(t) - z(t) - x{DOT1}(t)")
 
     def test_exercise_12_keeps_the_algebraic_loop(self):
-        """Like the professor: each equation keeps the other one's third derivative."""
+        """Each equation keeps the other one's third derivative (an algebraic loop)."""
         text = ("2y''' + 5y'' + y' + 2y + z''' + 1.5z'' + 2z' + 2z = u ; "
                 "3z''' + 2z'' + 5z' + 2z - y''' - 5y'' - 3y' - 2y = 0")
         _, solved = to_text(parse_system(text))
@@ -107,7 +107,7 @@ class TestSystems(unittest.TestCase):
 
 
 class TestInitialConditions(unittest.TestCase):
-    """Initial conditions shown in course notation, one line per variable."""
+    """Initial conditions shown in math notation, one line per variable."""
 
     def test_values_not_given_are_shown_as_zero(self):
         system = parse_system("y''' + 5y'' + 2y' + y + z = u ; z'' + z' + z + y = v")

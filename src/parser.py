@@ -8,7 +8,7 @@ means the same thing.
 The parser turns the text into SymPy expressions and solves the
 equations for the highest derivative of each unknown variable. That
 solved form is exactly what the Simulink model with integrators
-implements, following the method taught in the course.
+implements.
 
 Example:
     >>> system = parse_system("2y'' + 3y' + 2y = u")
@@ -277,8 +277,8 @@ def _classify_variables(equations: list, text: str) -> tuple:
 def _solve_for_highest(equations: list, orders: dict) -> dict:
     """Solve the equations for the highest derivative of each unknown.
 
-    The equations must be linear in those highest derivatives (as in all
-    course examples); they may be nonlinear in everything else.
+    The equations must be linear in those highest derivatives; they may be
+    nonlinear in everything else.
     """
     # Move everything to one side (left - right = 0), and list the highest
     # derivatives to solve for.
@@ -312,7 +312,7 @@ def variable_order(source: str, system: ParsedSystem) -> list:
 
 
 def ordered_terms(expr: sympy.Expr, variables: list) -> list:
-    """Split a sum into terms in the order used in the course.
+    """Split a sum into terms in the usual order.
 
     Inputs come first, then the terms of each variable (in the order the
     user wrote them) from the highest derivative down, as in
@@ -361,10 +361,10 @@ def isolate_equations(system: ParsedSystem) -> list:
 
     Each equation is matched with the unknown whose highest derivative it
     is solved for, preferring the variable written first in it. Highest
-    derivatives of other variables stay in the result, as in the course:
-    ż in ÿ = −5ẏ − y − ż − ẋ (exercise 6). They may even need each other,
-    like y⃛ and z⃛ in exercise 12: Simulink solves this "algebraic loop",
-    as in the professor's solution. With more than 6 equations, trying
+    derivatives of other variables stay in the result, like ż in
+    ÿ = −5ẏ − y − ż − ẋ. They may even need each other, like y⃛ and z⃛
+    when both equations contain both: Simulink solves this "algebraic
+    loop" by itself. With more than 6 equations, trying
     every matching would be too slow, so the fully solved expressions
     from the parser are used instead.
 
@@ -389,7 +389,7 @@ def isolate_equations(system: ParsedSystem) -> list:
             if None in rows:
                 continue
             # Score = how many equations are matched with the unknown written first in
-            # them. The best score wins: that's how the student would do it on paper.
+            # them. The best score wins: that's how you would do it by hand.
             score = sum(order[0] == name for order, name in zip(orders, assignment))
             if best is None or score > best[0]:
                 best = (score, assignment, rows)

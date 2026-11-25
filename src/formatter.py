@@ -6,7 +6,7 @@ Two outputs are produced from the same equations:
   equation in Word (the user never sees or types the LaTeX itself);
 * plain text, printed in the terminal.
 
-Notation follows the course: dots above the variable up to the third
+The notation is the usual one: dots above the variable up to the third
 derivative, then the order as a superscript in parentheses, y⁽⁴⁾.
 The solved form isolates the highest derivative of each equation the
 way it is done on paper, for example ẏ(t) = (u(t)/2 − 3y(t)) / 2.
@@ -103,7 +103,7 @@ def _join_terms(terms: list, printer) -> str:
 
 
 # SymPy already knows how to print any expression. The classes below only
-# change a few of its rules, so the equations look like in class.
+# change a few of its rules, so the equations look like they do on paper.
 # SymPy calls a method named _print_<Type> for each piece it prints:
 # _print_Symbol for a variable, _print_Pow for a power, and so on.
 class _TimeSignalMixin:
@@ -184,10 +184,10 @@ def equation_lines(system: ParsedSystem, printer_type: str) -> tuple:
 
     # Same code for the window and the terminal: only the printer changes.
     def side(expr, variables):
-        """Print one side of an equation, terms in class order."""
+        """Print one side of an equation, terms in the usual order."""
         return _join_terms(ordered_terms(expr, variables), printer)
 
-    # 1. The equations as the user wrote them, terms in class order.
+    # 1. The equations as the user wrote them, terms in the usual order.
     interpreted = []
     for equation, source in zip(system.equations, system.sources):
         variables = variable_order(source, system)
