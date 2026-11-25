@@ -137,6 +137,8 @@ class TestRendering(unittest.TestCase):
             interpreted, solved = to_latex(parse_system(text))
             for line in interpreted + solved:
                 with self.subTest(line=line):
+                    # Draw the line into an image kept in memory (no file, no window).
+                    # If matplotlib can't read the LaTeX, this raises an error and the test fails.
                     mathtext.math_to_image(f"${line}$", io.BytesIO(), format="png")
 
 

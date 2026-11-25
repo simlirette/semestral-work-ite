@@ -158,12 +158,16 @@ class TestModelIsComplete(unittest.TestCase):
             model = model_of(number)
             for block in model.blocks:
                 with self.subTest(exercise=number, block=block.name):
+                    # The wires entering this block must be on ports 1, 2, 3... with no port
+                    # missing and no port used twice. Otherwise Simulink can't run the model.
                     ports = [line.target_port for line in model.inputs_of(block.name)]
                     self.assertEqual(ports, list(range(1, block.input_count() + 1)))
 
     def test_every_block_output_is_used(self):
         for number in EXERCISES:
             model = model_of(number)
+            # Every block except the Scope must send its output somewhere,
+            # otherwise it was built for nothing.
             used = {line.source for line in model.lines}
             for block in model.blocks:
                 if block.kind != "Scope":
@@ -173,6 +177,7 @@ class TestModelIsComplete(unittest.TestCase):
     def test_block_names_are_unique(self):
         for number in EXERCISES:
             names = [block.name for block in model_of(number).blocks]
+            # A set keeps each name once: same length = no name appears twice.
             self.assertEqual(len(names), len(set(names)), number)
 
 

@@ -94,6 +94,7 @@ class TestScript(unittest.TestCase):
         for line in self.script.splitlines():
             if line and not line.startswith("%"):
                 with self.subTest(line=line):
+                    # An odd number of apostrophes means a MATLAB text was not closed.
                     self.assertEqual(line.count("'") % 2, 0)
 
 
@@ -111,8 +112,10 @@ class TestEveryBlockAndLine(unittest.TestCase):
             script = generate_script(model)
             with self.subTest(text=text):
                 self.assertEqual(script.count("add_block("), len(model.blocks))
+                # Count the lines starting with add_line(, with or without "h = " in front.
                 drawn = re.findall(r"^(?:h = )?add_line\(model, '", script, re.MULTILINE)
                 self.assertEqual(len(drawn), len(model.lines))
+                # Every library path in the script must be one of the paths we know.
                 used = set(re.findall(r"add_block\('([^']+)'", script))
                 self.assertTrue(used <= set(LIBRARY.values()))
 

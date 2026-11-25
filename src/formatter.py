@@ -21,10 +21,14 @@ from sympy.printing.str import StrPrinter
 
 from src.parser import ParsedSystem, isolate_equations, ordered_terms, split_symbol, variable_order
 
+# How to write 1, 2 or 3 dots above a letter, in LaTeX and in the terminal.
 _LATEX_DOTS = {1: r"\dot", 2: r"\ddot", 3: r"\dddot"}
 _TEXT_DOTS = {1: "̇", 2: "̈", 3: "⃛"}  # combining dots above
+# Tables that turn normal digits into small raised ones (y⁽⁴⁾) or small
+# lowered ones (x₁).
 _SUPERSCRIPT = str.maketrans("0123456789()", "⁰¹²³⁴⁵⁶⁷⁸⁹⁽⁾")
 _SUBSCRIPT = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+# A name split into its letters and its final digits: x1 -> x and 1.
 _NAME_PARTS = re.compile(r"([A-Za-z]+?)_?(\d*)$")
 
 
@@ -48,9 +52,11 @@ def derivative_latex(name: str, order: int) -> str:
         For example ``\\ddot{y}`` for y'' or ``y^{(4)}`` for y''''.
     """
     base, index = _base_and_index(name)
+    # x1 -> x_{1}: the digit becomes a subscript.
     subscript = f"_{{{index}}}" if index else ""
     if order == 0:
         return f"{base}{subscript}"
+    # Dots up to the 3rd derivative, then the order in parentheses: y^{(4)}.
     if order in _LATEX_DOTS:
         return f"{_LATEX_DOTS[order]}{{{base}}}{subscript}"
     return f"{base}{subscript}^{{({order})}}"
@@ -67,6 +73,7 @@ def derivative_text(name: str, order: int) -> str:
         For example ``ÿ`` for y'', ``x₁`` for x1, or ``y⁽⁴⁾`` for y''''.
     """
     base, index = _base_and_index(name)
+    # Same rules as above, with Unicode characters instead of LaTeX.
     subscript = index.translate(_SUBSCRIPT)
     if order == 0:
         return f"{base}{subscript}"
@@ -83,6 +90,8 @@ def _join_terms(terms: list, printer) -> str:
     if not terms:
         return "0"
     pieces = []
+    # Each term is printed without its sign, then the sign goes between
+    # the terms: "a - b + c", and "-a" only for the first one.
     for position, term in enumerate(terms):
         negative = term.could_extract_minus_sign()
         body = printer._print(-term if negative else term)
@@ -93,6 +102,10 @@ def _join_terms(terms: list, printer) -> str:
     return "".join(pieces)
 
 
+# SymPy already knows how to print any expression. The classes below only
+# change a few of its rules, so the equations look like in class.
+# SymPy calls a method named _print_<Type> for each piece it prints:
+# _print_Symbol for a variable, _print_Pow for a power, and so on.
 class _TimeSignalMixin:
     """Printer behaviour shared by the LaTeX and plain-text printers.
 
@@ -102,15 +115,19 @@ class _TimeSignalMixin:
     """
 
     def _print_Symbol(self, expr):
+        """Print a variable as a signal of time: y(t)."""
         return f"{self._name(expr)}(t)"
 
     def _print_Pow(self, expr):
+        """Print a power of a variable with the exponent before (t): ẏ³(t)."""
         base, exponent = expr.as_base_exp()
+        # Only for a variable to a whole power. Anything else is printed the normal way.
         if isinstance(base, sympy.Symbol) and exponent.is_Integer and exponent > 0:
             return self._power(self._name(base), exponent)
         return super()._print_Pow(expr)
 
     def _print_Add(self, expr, order=None):
+        """Print a sum with its positive terms first, as in (ẋ₂ − ẋ₁)."""
         terms = sorted(expr.args, key=lambda term: term.could_extract_minus_sign())
         return _join_terms(terms, self)
 
@@ -119,9 +136,11 @@ class _Latex(_TimeSignalMixin, LatexPrinter):
     """LaTeX printer for time signals."""
 
     def _name(self, symbol):
+        """Return the LaTeX name of a symbol, like \\ddot{y}."""
         return derivative_latex(*split_symbol(symbol))
 
     def _power(self, name, exponent):
+        """Return a LaTeX power before (t), like \\dot{y}^{3}(t)."""
         return f"{name}^{{{exponent}}}(t)"
 
 
@@ -129,17 +148,21 @@ class _Text(_TimeSignalMixin, StrPrinter):
     """Plain-text printer for time signals."""
 
     def _name(self, symbol):
+        """Return the text name of a symbol, like ÿ."""
         return derivative_text(*split_symbol(symbol))
 
     def _power(self, name, exponent):
+        """Return a text power before (t), like ẏ³(t)."""
         return f"{name}{str(exponent).translate(_SUPERSCRIPT)}(t)"
 
     def _print_Abs(self, expr):
+        """Print an absolute value with bars: |ẏ(t)|."""
         return f"|{self._print(expr.args[0])}|"
 
 
 def _tidy_text(text: str) -> str:
     """Drop the '*' after a number (3ẏ) and show other products with '·'."""
+    # 3*ẏ -> 3ẏ, then y*ẏ -> y·ẏ.
     return re.sub(r"(?<=[0-9.])\*", "", text).replace("*", "·")
 
 
@@ -159,19 +182,24 @@ def equation_lines(system: ParsedSystem, printer_type: str) -> tuple:
     """
     printer = _Latex() if printer_type == "latex" else _Text()
 
+    # Same code for the window and the terminal: only the printer changes.
     def side(expr, variables):
+        """Print one side of an equation, terms in class order."""
         return _join_terms(ordered_terms(expr, variables), printer)
 
+    # 1. The equations as the user wrote them, terms in class order.
     interpreted = []
     for equation, source in zip(system.equations, system.sources):
         variables = variable_order(source, system)
         interpreted.append(f"{side(equation.lhs, variables)} = {side(equation.rhs, variables)}")
 
+    # 2. Each equation solved for its highest derivative, as a fraction if needed.
     solved = []
     for symbol, numerator, denominator, variables in isolate_equations(system):
         left = printer._print(symbol)
         top = side(numerator, variables)
         bottom = printer._print(denominator)
+        # No fraction / a real fraction in the window / "(top) / bottom" in the terminal.
         if denominator == 1:
             solved.append(f"{left} = {top}")
         elif printer_type == "latex":
@@ -180,6 +208,7 @@ def equation_lines(system: ParsedSystem, printer_type: str) -> tuple:
             bottom = bottom if denominator.is_Atom else f"({bottom})"
             solved.append(f"{left} = ({top}) / {bottom}")
 
+    # The terminal version gets its products cleaned (3ẏ, y·ẏ).
     if printer_type == "text":
         interpreted = [_tidy_text(line) for line in interpreted]
         solved = [_tidy_text(line) for line in solved]
@@ -210,11 +239,15 @@ def initial_condition_lines(system: ParsedSystem, conditions: dict, printer_type
         printer_type: ``"latex"`` or ``"text"``.
     """
     printer = _Latex() if printer_type == "latex" else _Text()
+    # The window and the terminal write names and separators differently.
     name_of = derivative_latex if printer_type == "latex" else derivative_text
     separator = r",\quad " if printer_type == "latex" else ", "
 
     def value(name, k):
+        """Print one starting value, like ẏ(0) = 1/2."""
         number = sympy.sympify(conditions.get((name, k), 0))
         return f"{name_of(name, k)}(0) = {printer._print(number)}"
 
+    # One line per variable, with one value per Integrator: y(0), ẏ(0)... up to
+    # the order below the highest one. Values not given are shown as 0.
     return [separator.join(value(name, k) for k in range(order)) for name, order in system.orders.items()]

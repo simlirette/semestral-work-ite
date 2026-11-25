@@ -16,7 +16,8 @@ from src.parser import parse_initial_conditions, parse_system
 def answers(*replies):
     """Return a fake `input` function that gives the replies in order."""
     remaining = iter(replies)
-    return lambda prompt: next(remaining)
+    # Each call gives the next prepared answer, like a user typing them one by one.
+    return lambda _prompt: next(remaining)
 
 
 class TestAskConfirmation(unittest.TestCase):
